@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клумба — ваша жизнь</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23e56b9a'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,620;1,9..144,500;1,9..144,620&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="assets/film/living.jpg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="track" id="track">
+    <div class="stage" id="stage">
+      <img class="hero is-first" data-beat="living" src="assets/film/living.jpg" alt="Живая скульптурная клумба" />
+      <video class="hero" data-beat="breath" id="breath" src="assets/film/breath.mp4" poster="assets/film/breath-poster.jpg" muted playsinline loop preload="auto" aria-label="Клумба дышит"></video>
+      <img class="hero" data-beat="choked" src="assets/film/choked.jpg" alt="Клумба, задушенная сорняками" />
+      <img class="hero" data-beat="pull" src="assets/film/pull.jpg" alt="Садовница выдёргивает сорняк с корнем" />
+      <img class="hero" data-beat="pull-close" src="assets/film/pull-close.jpg" alt="Корень в руках садовницы" />
+      <img class="hero" data-beat="revived" src="assets/film/revived.jpg" alt="Клумба снова живая" />
+
+      <div class="shade" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+      <canvas id="life"></canvas>
+      <div class="weeds" id="weeds"></div>
+
+      <header class="top">
+        <div class="brand"><i></i>клумба</div>
+        <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+      </header>
+
+      <div class="caption" id="caption"></div>
+      <div class="toast" id="toast"></div>
+      <div class="hint" id="hint">листай вниз</div>
+    </div>
+  </div>
+
+  <section class="write" id="write">
+    <p class="kicker">если сорняк отрастает снова</p>
+    <h2>Смотри не на стебель.</h2>
+    <p>Гипнотерапия работает там, куда списки не доходят. Со сжатием в груди. С привычкой ждать плохое. С запретом себе хотеть.</p>
+    <form id="noteForm">
+      <input required name="msg" placeholder="Напиши «корень» или свой вопрос" />
+      <button class="btn" type="submit">Отправить</button>
+    </form>
+    <p id="thanks">Пришло. Отвечу как человеку, не как рассылка.</p>
+  </section>
+
+  <script src="garden.js"></script>
+</body>
+</html>
