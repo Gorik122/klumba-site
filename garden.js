@@ -857,7 +857,7 @@
     weeds: { cx: 0, cy: -150, w: 1080, h: 640, mw: 720 },
     choke: { cx: 0, cy: -150, w: 940, h: 540, mw: 660 },
     portrait: { cx: GIRL_HOME - 40, cy: -125, w: 560, h: 430, mw: 400 },
-    reveal: { cx: 0, cy: 175, w: 1180, h: 860, mw: 800 },
+    reveal: { cx: 0, cy: 175, w: 1180, h: 860, mw: 950 },
     finale: { cx: 0, cy: -175, w: 1080, h: 660, mw: 680 }
   };
   function camRect(p, gx) {
