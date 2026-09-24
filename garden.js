@@ -43,6 +43,25 @@
     return out;
   }
   const line = (pts) => "M" + pts.map((q) => n1(q[0]) + " " + n1(q[1])).join("L");
+  // эллипс как кусок пути: так сотни мелких камней и точек собираются в несколько элементов
+  function ellD(cx, cy, rx, ry, deg) {
+    const a = deg / DEG, dx = Math.cos(a) * rx, dy = Math.sin(a) * rx;
+    const arc = `A${n1(rx)} ${n1(ry)} ${n1(deg)} 0 1 `;
+    return `M${n1(cx + dx)} ${n1(cy + dy)}${arc}${n1(cx - dx)} ${n1(cy - dy)}${arc}${n1(cx + dx)} ${n1(cy + dy)}Z`;
+  }
+  // копилка мелочи: одинаковый стиль — один path, слой задаёт порядок отрисовки;
+  // части левее и правее клумбы — отдельные элементы, чтобы за кадром они не рисовались
+  function pathHeap() {
+    const m = new Map();
+    return {
+      add(layer, x, attrs, d) {
+        const key = layer + (x < -SLAB ? "l" : x > SLAB ? "r" : "m") + "|" + attrs;
+        m.set(key, (m.get(key) || "") + d);
+      },
+      svg: () => [...m].sort((a, b) => a[0].charCodeAt(0) - b[0].charCodeAt(0))
+        .map(([k, d]) => `<path d="${d}" ${k.slice(k.indexOf("|") + 1)}/>`).join("")
+    };
+  }
 
   // filled, tapered shape along a polyline (roots)
   function taper(pts, wfn) {
@@ -88,6 +107,10 @@
 
   // мир: земля y=0, небо y<0, почва y>0
   const BED = 480, SLAB = 700, DEPTH = 620;
+  // сама почва тянется далеко за любой кадр: ни на одном экране не видно её края
+  const EDGE = 2400, FLOOR = 1600;
+  // шаг 30 от старого края: середина мха и слоёв почвы остаётся точно такой же
+  const GRID = 30 * Math.ceil((EDGE - SLAB) / 30);
   const mound = (x) => {
     const t = x / BED;
     return t * t >= 1 ? 0 : -40 * Math.pow(1 - t * t, 0.75);
@@ -451,15 +474,14 @@
   const SVGS = [svgBack, svgFlowers, svgWeeds, svgFront, svgGirl];
 
   function slabPath() {
-    const R = 70;
-    let d = `M${-SLAB} 0`;
+    let d = `M${-EDGE} 0`;
     for (let x = -BED; x <= BED; x += 20) d += `L${x} ${n1(mound(x))}`;
-    d += `L${SLAB} 0L${SLAB} ${DEPTH - R}Q${SLAB} ${DEPTH} ${SLAB - R} ${DEPTH}L${-SLAB + R} ${DEPTH}Q${-SLAB} ${DEPTH} ${-SLAB} ${DEPTH - R}Z`;
+    d += `L${EDGE} 0L${EDGE} ${FLOOR}L${-EDGE} ${FLOOR}Z`;
     return d;
   }
   function band(y, th, seed) {
     const top = [], bot = [];
-    for (let x = -SLAB - 20; x <= SLAB + 20; x += 30) {
+    for (let x = -SLAB - 20 - GRID; x <= SLAB + 20 + GRID; x += 30) {
       top.push([x, y + 8 * Math.sin(x * 0.011 + seed * 2) + 4 * Math.sin(x * 0.027 + seed)]);
       bot.push([x, y + th + 8 * Math.sin(x * 0.013 + seed * 3) + 3 * Math.sin(x * 0.031 + seed)]);
     }
@@ -495,16 +517,19 @@
     let speck = "";
     for (let k = 0; k < 16; k++) speck += `<circle cx="${n1(r() * 60)}" cy="${n1(r() * 60)}" r="${n1(0.6 + r() * 1.2)}" fill="${r() < 0.6 ? "#20150d" : "#8a6f58"}" opacity="${n1(0.3 + r() * 0.5)}"/>`;
 
+    // цвет почвы по глубине: верхние слои как были, глубже почва плавно темнеет
+    const soil = [[0, "#5e4433"], [0.2, "#43301f"], [0.55, "#4b3223"], [0.85, "#5d3c2a"], [1, "#6a4330"]]
+      .map(([o, c]) => [-40 + o * (DEPTH + 40), c])
+      .concat([[800, "#664230"], [1000, "#5a3b2b"], [1260, "#4e3427"], [FLOOR, "#452e23"]])
+      .map(([y, c]) => `<stop offset="${((y + 40) / (FLOOR + 40)).toFixed(4)}" stop-color="${c}"/>`).join("");
+
     let b = `<defs>
       <linearGradient id="gSky" gradientUnits="userSpaceOnUse" x1="0" y1="-1300" x2="0" y2="900">
         <stop offset="0" stop-color="#9483bb"/><stop offset=".42" stop-color="#b8a6d4"/><stop offset=".72" stop-color="#d9cbe7"/><stop offset="1" stop-color="#ece2f0"/>
       </linearGradient>
       <radialGradient id="gGlow"><stop offset="0" stop-color="#ffe9f3" stop-opacity=".95"/><stop offset=".45" stop-color="#ffd3e6" stop-opacity=".4"/><stop offset="1" stop-color="#ffd3e6" stop-opacity="0"/></radialGradient>
       <radialGradient id="gHalo"><stop offset="0" stop-color="#fff6fa" stop-opacity=".95"/><stop offset=".5" stop-color="#ffd6e7" stop-opacity=".45"/><stop offset="1" stop-color="#ffc9de" stop-opacity="0"/></radialGradient>
-      <radialGradient id="gShadow"><stop offset="0" stop-color="#4b3560" stop-opacity=".4"/><stop offset="1" stop-color="#4b3560" stop-opacity="0"/></radialGradient>
-      <linearGradient id="gSoil" gradientUnits="userSpaceOnUse" x1="0" y1="-40" x2="0" y2="${DEPTH}">
-        <stop offset="0" stop-color="#5e4433"/><stop offset=".2" stop-color="#43301f"/><stop offset=".55" stop-color="#4b3223"/><stop offset=".85" stop-color="#5d3c2a"/><stop offset="1" stop-color="#6a4330"/>
-      </linearGradient>
+      <linearGradient id="gSoil" gradientUnits="userSpaceOnUse" x1="0" y1="-40" x2="0" y2="${FLOOR}">${soil}</linearGradient>
       <pattern id="pSpeck" width="60" height="60" patternUnits="userSpaceOnUse">${speck}</pattern>
       <clipPath id="cSlab"><path d="${slabD}"/></clipPath>
     </defs>`;
@@ -512,20 +537,33 @@
     b += `<circle id="bGlow" cx="0" cy="-220" r="640" fill="url(#gGlow)" opacity="0"/>`;
     b += `<rect id="bGloom" x="-6000" y="-6000" width="12000" height="12000" fill="#2e2640" opacity="0"/>`;
     b += `<circle id="bHalo" cx="${GIRL_HOME}" cy="-150" r="240" fill="url(#gHalo)" opacity="0"/>`;
-    b += `<ellipse cx="0" cy="${DEPTH + 26}" rx="${SLAB + 90}" ry="64" fill="url(#gShadow)"/>`;
     b += `<path d="${slabD}" fill="url(#gSoil)"/>`;
     b += `<g clip-path="url(#cSlab)">`;
-    [[150, 26, "#34251a", 0.55], [320, 34, "#563a29", 0.5], [470, 52, "#76523a", 0.45]].forEach(([y, th, col, op], k) => {
+    [[150, 26, "#34251a", 0.55], [320, 34, "#563a29", 0.5], [470, 52, "#76523a", 0.45],
+     [660, 34, "#3e2a1d", 0.5], [820, 60, "#76523a", 0.35], [1010, 42, "#35251a", 0.45], [1200, 76, "#6a4834", 0.3], [1420, 54, "#2f2017", 0.4]].forEach(([y, th, col, op], k) => {
       b += `<path d="${band(y, th, k + 1)}" fill="${col}" opacity="${op}"/>`;
     });
-    b += `<rect x="${-SLAB}" y="-60" width="${SLAB * 2}" height="${DEPTH + 60}" fill="url(#pSpeck)" opacity=".6"/>`;
+    b += `<rect x="${-EDGE}" y="-60" width="${EDGE * 2}" height="${FLOOR + 60}" fill="url(#pSpeck)" opacity=".6"/>`;
+    const STONES = ["#7b6655", "#8c7766", "#6a5646", "#9a8676", "#5e4c3f", "#a08a73"];
     for (let k = 0; k < 64; k++) {
       const x = -SLAB + 10 + r() * (SLAB * 2 - 20), y = 26 + r() * (DEPTH - 50);
       const rx = 2.5 + r() * (4 + (y / DEPTH) * 10), ry = rx * (0.55 + r() * 0.3), rot = n1(r() * 180);
-      const col = pick(r, ["#7b6655", "#8c7766", "#6a5646", "#9a8676", "#5e4c3f", "#a08a73"]);
+      const col = pick(r, STONES);
       b += `<g transform="translate(${n1(x)} ${n1(y)}) rotate(${rot})"><ellipse rx="${n1(rx)}" ry="${n1(ry)}" fill="${col}"/><ellipse cx="${n1(-rx * 0.25)}" cy="${n1(-ry * 0.3)}" rx="${n1(rx * 0.45)}" ry="${n1(ry * 0.35)}" fill="#fff" opacity=".13"/></g>`;
     }
-    b += `</g>`;
+    // камни в продолжении почвы: свой генератор (середина не меняется), по path на цвет
+    const rs = makeRng(606), heap = pathHeap();
+    for (let n = 0, tries = 0; n < 330 && tries < 6000; tries++) {
+      const x = (rs() * 2 - 1) * (EDGE - 20), y = 26 + rs() * (FLOOR - 80);
+      if (Math.abs(x) < SLAB - 10 && y < DEPTH - 24) continue;
+      if ((Math.abs(x) > 1600 || y > 1250) && rs() < 0.7) continue;
+      const rx = 2.5 + rs() * (4 + Math.min(1.4, y / DEPTH) * 10), ry = rx * (0.55 + rs() * 0.3), rot = rs() * 180;
+      const a = rot / DEG, c = Math.cos(a), s = Math.sin(a);
+      heap.add(0, x, `fill="${pick(rs, STONES)}"`, ellD(x, y, rx, ry, rot));
+      heap.add(1, x, `fill="#fff" opacity=".13"`, ellD(x - 0.25 * rx * c + 0.3 * ry * s, y - 0.25 * rx * s - 0.3 * ry * c, rx * 0.45, ry * 0.35, rot));
+      n++;
+    }
+    b += heap.svg() + `</g>`;
     b += `<path d="M-418 118c6 -6 12 6 18 0s12 6 18 0s12 6 16 2" stroke="#d98d8f" stroke-width="4.5" fill="none" stroke-linecap="round"/><circle cx="-419" cy="118" r="1" fill="#3b2a20"/>`;
 
     // тонкие корешки цветов
@@ -571,27 +609,60 @@
     WEEDS.forEach((w, i) => weeds.push(buildWeed(i)));
 
     // ---------- front: мох и грибы ----------
-    const rf = makeRng(77);
-    let moss = `<path d="`;
-    let x = -SLAB - 10;
-    moss += `M${x} ${n1(mound(x) + 16)}L${x} ${n1(mound(x) - 3)}`;
-    while (x < SLAB + 10) {
-      const nx = Math.min(SLAB + 10, x + 9 + rf() * 8);
-      const mx = (x + nx) / 2;
-      moss += `Q${n1(mx)} ${n1(mound(mx) - 9 - rf() * 6)} ${n1(nx)} ${n1(mound(nx) - 3)}`;
-      x = nx;
-    }
-    moss += `L${SLAB + 10} ${n1(mound(SLAB) + 16)}`;
-    for (x = SLAB + 10; x >= -SLAB - 10; x -= 30) moss += `L${x} ${n1(mound(x) + 12 + Math.sin(x * 0.07) * 3)}`;
+    const rf = makeRng(77), rq = makeRng(78); // rq — только для продолжения мха за клумбой
+    const bumps = (x, xEnd, q) => {
+      let d = "";
+      while (x < xEnd) {
+        const nx = Math.min(xEnd, x + 9 + q() * 8);
+        const mx = (x + nx) / 2;
+        d += `Q${n1(mx)} ${n1(mound(mx) - 9 - q() * 6)} ${n1(nx)} ${n1(mound(nx) - 3)}`;
+        x = nx;
+      }
+      return d;
+    };
+    const M0 = -SLAB - 10 - GRID, M1 = SLAB + 10 + GRID;
+    let moss = `<path d="M${M0} ${n1(mound(M0) + 16)}L${M0} ${n1(mound(M0) - 3)}`;
+    moss += bumps(M0, -SLAB - 10, rq);
+    moss += bumps(-SLAB - 10, SLAB + 10, rf);
+    moss += bumps(SLAB + 10, M1, rq);
+    moss += `L${M1} ${n1(mound(M1) + 16)}`;
+    for (let x = M1; x >= M0; x -= 30) moss += `L${x} ${n1(mound(x) + 12 + Math.sin(x * 0.07) * 3)}`;
     moss += `Z" fill="#7a9842"/>`;
     let mossShade = "";
-    for (x = -SLAB - 10; x <= SLAB + 10; x += 30) mossShade += (x === -SLAB - 10 ? "M" : "L") + `${x} ${n1(mound(x) + 3)}`;
-    for (x = SLAB + 10; x >= -SLAB - 10; x -= 30) mossShade += `L${x} ${n1(mound(x) + 12 + Math.sin(x * 0.07) * 3)}`;
+    for (let x = M0; x <= M1; x += 30) mossShade += (x === M0 ? "M" : "L") + `${x} ${n1(mound(x) + 3)}`;
+    for (let x = M1; x >= M0; x -= 30) mossShade += `L${x} ${n1(mound(x) + 12 + Math.sin(x * 0.07) * 3)}`;
     let dots = "";
     for (let k = 0; k < 170; k++) {
       const dx = -SLAB + rf() * SLAB * 2;
       dots += `<circle cx="${n1(dx)}" cy="${n1(mound(dx) - 4 + rf() * 12)}" r="${n1(0.8 + rf() * 1.6)}" fill="${rf() < 0.5 ? "#a8c264" : "#5e7a31"}"/>`;
     }
+    // за краем клумбы — тот же мох, трава и незабудки. Их почти всегда не видно,
+    // поэтому они неподвижные и собраны в несколько path
+    const turf = pathHeap();
+    for (let k = 0; k < 400; k++) {
+      const dx = (rq() < 0.5 ? -1 : 1) * (SLAB + rq() * (EDGE - SLAB)), rad = 0.8 + rq() * 1.6;
+      turf.add(0, dx, `fill="${rq() < 0.5 ? "#a8c264" : "#5e7a31"}"`, ellD(dx, mound(dx) - 4 + rq() * 12, rad, rad, 0));
+    }
+    for (let gx = SLAB + 30; gx < EDGE; gx += 46 + rq() * 20) {
+      for (const side of [-1, 1]) {
+        const X = side * gx + (rq() - 0.5) * 16, Y = mound(X) + 5;
+        if (rq() < 0.25) {
+          for (let k = 3 + Math.floor(rq() * 3); k > 0; k--) {
+            const x = X + (rq() - 0.5) * 26, y = Y - 6 - rq() * 16, col = pick(rq, ["#a9b9f3", "#c6b5f1", "#fff4fa"]);
+            turf.add(2, X, `stroke="#6f9b3d" stroke-width="1" fill="none"`, `M${n1(X + (x - X) * 0.4)} ${n1(Y)}Q${n1(X + (x - X) * 0.6)} ${n1((Y + y) / 2)} ${n1(x)} ${n1(y)}`);
+            for (let q = 0; q < 5; q++) turf.add(3, X, `fill="${col}"`, ellD(x + Math.cos(q * 1.2566) * 2.3, y + Math.sin(q * 1.2566) * 2.3, 1.9, 1.9, 0));
+            turf.add(4, X, `fill="#f3cf5e"`, ellD(x, y, 1.1, 1.1, 0));
+          }
+        } else {
+          for (let k = 5 + Math.floor(rq() * 4); k > 0; k--) {
+            const x0 = X + (rq() - 0.5) * 12, h = 14 + rq() * 22, x1 = x0 + (rq() - 0.5) * 22;
+            turf.add(1, X, `stroke="${pick(rq, ["#6f9b3d", "#86ad4a", "#5b8834"])}" stroke-width="2.3" fill="none" stroke-linecap="round"`,
+              `M${n1(x0)} ${n1(Y)}Q${n1(x0 + (x1 - x0) * 0.2)} ${n1(Y - h * 0.6)} ${n1(x1)} ${n1(Y - h)}`);
+          }
+        }
+      }
+    }
+    dots += turf.svg();
     svgFront.innerHTML = `<defs><radialGradient id="gCap" cx=".4" cy=".25" r=".9"><stop offset="0" stop-color="#e8604a"/><stop offset=".6" stop-color="#cf4029"/><stop offset="1" stop-color="#a92d1d"/></radialGradient></defs>` +
       moss + `<path d="${mossShade}Z" fill="#5f7b33" opacity=".75"/>` + dots;
     FRONT_PLAN.forEach(([kind, x, o], k) => flowers.push(addPlant(svgFront, kind, x, o, 200 + k * 11, true)));
@@ -857,21 +928,23 @@
     weeds: { cx: 0, cy: -150, w: 1080, h: 640, mw: 720 },
     choke: { cx: 0, cy: -150, w: 940, h: 540, mw: 660 },
     portrait: { cx: GIRL_HOME - 40, cy: -125, w: 560, h: 430, mw: 400 },
-    reveal: { cx: 0, cy: 175, w: 1180, h: 860, mw: 950 },
+    // mcx — центр кадра на телефоне: сдвинут вправо, чтобы садовница у правого края влезла целиком
+    reveal: { cx: 0, mcx: 70, cy: 175, w: 1180, h: 860, mw: 950 },
     finale: { cx: 0, cy: -175, w: 1080, h: 660, mw: 680 }
   };
+  const mcx = (c) => ("mcx" in c ? c.mcx : c.cx);
   function camRect(p, gx) {
     const pull = { cx: gx - 120, cy: 60, w: 900, h: 760, mw: 640 };
     const K = [
-      [0, CAM.intro], [0.05, CAM.intro], [0.1, CAM.weeds], [0.345, CAM.weeds], [0.37, CAM.choke], [0.385, CAM.choke],
-      [0.415, CAM.portrait], [0.447, CAM.portrait], [0.495, CAM.reveal], [0.515, CAM.reveal], [0.545, pull],
+      [0, CAM.intro], [0.05, CAM.intro], [0.1, CAM.weeds], [0.345, CAM.weeds], [0.37, CAM.choke], [0.38, CAM.choke],
+      [0.41, CAM.portrait], [0.447, CAM.portrait], [0.495, CAM.reveal], [0.515, CAM.reveal], [0.545, pull],
       [TL.finale, pull], [TL.finale + 0.04, CAM.finale], [1, CAM.finale]
     ];
     for (let k = 0; k < K.length - 1; k++) {
       const [p0, a] = K[k], [p1, b] = K[k + 1];
       if (p <= p1 || k === K.length - 2) {
         const e = ease(range(p, p0, p1));
-        return { cx: lerp(a.cx, b.cx, e), cy: lerp(a.cy, b.cy, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e), mw: lerp(a.mw, b.mw, e) };
+        return { cx: lerp(a.cx, b.cx, e), mcx: lerp(mcx(a), mcx(b), e), cy: lerp(a.cy, b.cy, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e), mw: lerp(a.mw, b.mw, e) };
       }
     }
   }
@@ -886,8 +959,9 @@
   function viewFor(rect) {
     const A = sceneArea();
     const rw = A.narrow ? rect.mw : rect.w;
+    const cx = A.narrow ? rect.mcx : rect.cx;
     const s = Math.max(rw / A.w, rect.h / A.h);
-    return { x0: rect.cx - (A.x + A.w / 2) * s, y0: rect.cy - (A.y + A.h / 2) * s, s, vw: VW * s, vh: VH * s };
+    return { x0: cx - (A.x + A.w / 2) * s, y0: rect.cy - (A.y + A.h / 2) * s, s, vw: VW * s, vh: VH * s };
   }
 
   /* =========================================================
