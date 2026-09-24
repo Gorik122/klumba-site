@@ -52,6 +52,18 @@ body {
     linear-gradient(180deg, rgba(46, 28, 64, .14) 0%, transparent 16%);
 }
 
+/* плавный переход почвы в следующий блок в самом конце истории */
+.stage__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30vh;
+  background: linear-gradient(to bottom, transparent, #efe6f3);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---------- labels on the scene ---------- */
 
 .labels { position: absolute; inset: 0; pointer-events: none; }

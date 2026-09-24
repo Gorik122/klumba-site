@@ -87,7 +87,7 @@
   };
 
   // мир: земля y=0, небо y<0, почва y>0
-  const BED = 480, SLAB = 540, DEPTH = 620;
+  const BED = 480, SLAB = 700, DEPTH = 620;
   const mound = (x) => {
     const t = x / BED;
     return t * t >= 1 ? 0 : -40 * Math.pow(1 - t * t, 0.75);
@@ -1130,6 +1130,7 @@
   };
   const bGlow = $("bGlow"), bGloom = $("bGloom"), bHalo = $("bHalo");
   const hint = $("hint");
+  const stageFade = $("stageFade");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   let lastFilter = "";
   const cache = new Map();
@@ -1328,6 +1329,7 @@
     // ----- подпись и подсказка -----
     caption(p, st);
     hint.style.opacity = p < 0.012 ? 1 : 0;
+    stageFade.style.opacity = f2(smooth(range(p, 0.965, 1)));
 
     // ----- частицы -----
     if (!still) {
