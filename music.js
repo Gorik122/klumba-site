@@ -1,7 +1,7 @@
 /* Музыка клумбы: сказочная, играет сама из Web Audio (без файлов).
    Каждый шаг прокрутки звенит нотой музыкальной шкатулки, фон и лад
    меняются вместе с историей, чужие фразы отзываются глухим ударом,
-   вынутый корень — россыпью колокольчиков. По умолчанию выключена. */
+   вынутый корень — россыпью колокольчиков. Включается сама с первого касания, кнопкой — выключается. */
 (() => {
   "use strict";
 
@@ -217,16 +217,20 @@
   const save = (v) => { try { localStorage.setItem(KEY, v ? "1" : "0"); } catch (e) {} };
   if (btn) btn.addEventListener("click", () => { wanted = !on; save(wanted); wanted ? start() : stop(); });
 
-  // если музыку включали в прошлый раз — продолжим с первого касания (браузер не даёт звучать без него)
-  try { wanted = localStorage.getItem(KEY) === "1"; } catch (e) {}
-  if (wanted) {
-    const first = (e) => {
-      if (btn && btn.contains(e.target)) return;
-      ["pointerdown", "touchend", "keydown"].forEach((n) => removeEventListener(n, first, true));
-      if (wanted && !on) start();
-    };
-    ["pointerdown", "touchend", "keydown"].forEach((n) => addEventListener(n, first, true));
-  }
+  // музыка включена по умолчанию (пока человек сам её не выключит) и стартует
+  // с первого касания/прокрутки — без жеста браузер звучать не даёт
+  try { wanted = localStorage.getItem(KEY) !== "0"; } catch (e) { wanted = true; }
+  const GESTURES = ["pointerdown", "touchend", "click", "keydown", "wheel"];
+  const first = (e) => {
+    if (btn && btn.contains(e.target)) return;
+    if (!wanted) return;
+    if (!on) start();
+    if (ctx && ctx.state !== "running") ctx.resume().catch(() => {});
+    setTimeout(() => {
+      if (ctx && ctx.state === "running") GESTURES.forEach((n) => removeEventListener(n, first, true));
+    }, 300);
+  };
+  GESTURES.forEach((n) => addEventListener(n, first, { capture: true, passive: true }));
   document.addEventListener("visibilitychange", () => {
     if (!ctx || !on) return;
     document.hidden ? ctx.suspend() : ctx.resume();
