@@ -1637,6 +1637,20 @@
     measureCaption();
   }
 
+  // длина текущего абзаца истории в долях прокрутки
+  function beatLen(p) {
+    if (p < TL.weed0 - 0.006) return TL.weed0 - 0.006;
+    if (p < TL.choke) return TL.weedStep;
+    if (p < TL.girlIn[0]) return TL.girlIn[0] - TL.choke;
+    if (p < TL.dig) return TL.dig - TL.girlIn[0];
+    if (p < TL.pull0) return TL.pull0 - TL.dig;
+    if (p < TL.finale) {
+      const u = ((p - TL.pull0) % TL.pullStep) / TL.pullStep;
+      return TL.pullStep * (u < 0.64 ? 0.64 : 0.36);
+    }
+    return 1 - TL.finale;
+  }
+
   function scrollTarget() {
     const max = track.offsetHeight - VH;
     return max > 0 ? clamp(-track.getBoundingClientRect().top / max, 0, 1) : 0;
@@ -1659,7 +1673,14 @@
     const target = scrollTarget();
     if (reduce.matches) cur = target;
     else {
-      cur += (target - cur) * (1 - Math.pow(0.0015, dt));
+      // история догоняет прокрутку плавно и не быстрее ~одного абзаца за секунду:
+      // даже резкий свайп проигрывает каждый кадр, а не перескакивает через текст
+      const gap = target - cur;
+      const vmax = gap > 0 ? beatLen(cur) / 0.9 : 0.2; // вперёд — абзац не быстрее чем за ~0.9 с
+
+      let d = gap * (1 - Math.pow(0.0015, dt));
+      d = clamp(d, -vmax * dt, vmax * dt);
+      cur += d;
       if (Math.abs(target - cur) < 0.00004) cur = target;
     }
     render(cur, now / 1000, dt);

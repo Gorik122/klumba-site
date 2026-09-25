@@ -23,7 +23,7 @@ body {
 
 /* ---------- scroll stage ---------- */
 
-.track { position: relative; height: 1400vh; }
+.track { position: relative; height: 2000vh; }
 
 .stage {
   position: sticky;
