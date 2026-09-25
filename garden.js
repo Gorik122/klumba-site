@@ -1101,6 +1101,16 @@
   mapEl.addEventListener("animationend", (e) => e.target.classList && e.target.classList.remove("is-pulse"));
 
   const captionEl = $("caption");
+  const stageEl = $("stage");
+  function hurt() {
+    for (const el of [captionEl, stageEl]) {
+      el.classList.remove("is-hurt");
+      void el.offsetWidth; // перезапуск анимации
+      el.classList.add("is-hurt");
+    }
+    if (navigator.vibrate && !reduce.matches) navigator.vibrate([18, 40, 26]);
+  }
+  captionEl.addEventListener("animationend", (e) => { if (e.target === captionEl) captionEl.classList.remove("is-hurt"); });
   let capKey = "";
   function caption(p, st) {
     let key, html;
@@ -1135,9 +1145,14 @@
       html = `<p class="kicker">клумба снова живая</p><h2>Это снова твой сад.</h2><p class="sub">Сила, которая уходила на сорняки, возвращается к тебе. Цветы тянутся к свету — и ты тоже.</p><ul class="chips">${WEEDS.map((w) => `<li>${w.truth}</li>`).join("")}</ul>`;
     }
     if (key !== capKey) {
+      const prev = capKey;
       capKey = key;
       captionEl.innerHTML = `<div class="in">${html}</div>`;
       measureCaption();
+      // новая чужая фраза бьёт: карточка вздрагивает, сцену сжимает болью
+      const wi = key[0] === "w" ? +key.slice(1) : -1;
+      const was = prev === "intro" ? -1 : prev[0] === "w" ? +prev.slice(1) : 99;
+      if (wi >= 0 && wi > was) hurt();
     }
   }
 

@@ -539,3 +539,70 @@ h2 { font-size: clamp(28px, 2.7vw, 42px); }
   color: var(--pink);
 }
 .map__hint + .map { margin-top: 14px; }
+
+/* ---------- удар чужой фразы ---------- */
+
+/* карточка вздрагивает, как от окрика */
+.caption.is-hurt { animation: capHurt .62s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes capHurt {
+  0% { translate: 0 0; rotate: 0deg; }
+  10% { translate: -9px 2px; rotate: -.8deg; }
+  22% { translate: 8px -2px; rotate: .7deg; }
+  34% { translate: -6px 1px; rotate: -.5deg; }
+  48% { translate: 4px 0; rotate: .3deg; }
+  62% { translate: -2px 0; rotate: -.15deg; }
+  78% { translate: 1px 0; rotate: 0deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+.caption::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(214, 46, 86, .85), 0 0 46px rgba(196, 30, 70, .45);
+  opacity: 0;
+}
+.caption.is-hurt::after { animation: capSting .9s ease-out both; }
+@keyframes capSting {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* сама фраза падает тяжело и на миг «двоится» */
+.caption.is-hurt .quote { animation: quoteHurt .75s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes quoteHurt {
+  0% { transform: scale(1.14); color: #9e1f45; text-shadow: -3px 0 rgba(214, 46, 86, .55), 3px 0 rgba(60, 20, 80, .45); }
+  30% { transform: scale(.98); color: #9e1f45; text-shadow: -1.5px 0 rgba(214, 46, 86, .4), 1.5px 0 rgba(60, 20, 80, .3); }
+  100% { transform: scale(1); color: inherit; text-shadow: none; }
+}
+.quote { transform-origin: 0 60%; }
+
+/* сцену на миг сжимает: тёмно-красная волна от краёв и толчок */
+.stage__pain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(75% 65% at 50% 55%, transparent 30%, rgba(110, 12, 42, .38) 72%, rgba(70, 6, 28, .7) 100%);
+}
+.stage.is-hurt .stage__pain { animation: painWave .95s ease-out both; }
+@keyframes painWave {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.stage.is-hurt > .layer { animation: sceneJolt .5s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes sceneJolt {
+  0% { translate: 0 0; scale: 1; }
+  15% { translate: 5px 3px; scale: 1.03; }
+  30% { translate: -5px -2px; scale: 1.025; }
+  45% { translate: 3px 1px; scale: 1.015; }
+  65% { translate: -2px 0; scale: 1.006; }
+  100% { translate: 0 0; scale: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caption.is-hurt, .stage.is-hurt > .layer, .caption.is-hurt .quote { animation: none; }
+  .stage.is-hurt .stage__pain { animation-duration: 1.4s; }
+}
