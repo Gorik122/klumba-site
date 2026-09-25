@@ -97,7 +97,7 @@ test("the garden story plays from bloom to weeds to roots and back", async () =>
     const { page, errors } = await openPage(browser, server.address().port, { width: 1440, height: 900 });
 
     const open = await at(page, 0);
-    assert.match(open.caption, /Представь, что ты/);
+    assert.match(open.caption, /Представь, что твоя жизнь/);
     assert.ok(open.hint > 0.5, "scroll hint visible");
     assert.equal(open.weeds.length, 0, "no weeds yet");
 
