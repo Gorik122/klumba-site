@@ -47,7 +47,7 @@
     lp.frequency.value = 3600;
     lp.connect(master);
     dry = ctx.createGain(); dry.gain.value = 0.6; dry.connect(lp);
-    const rev = ctx.createConvolver(); rev.buffer = impulse(5.2);
+    const rev = ctx.createConvolver(); rev.buffer = impulse(4.2);
     wet = ctx.createGain(); wet.gain.value = 0.8;
     rev.connect(wet); wet.connect(lp);
     dry.rev = rev;
@@ -126,7 +126,7 @@
 
   // --- вызывается из garden.js каждый кадр ---
   function frame(p, s) {
-    if (!on || !ctx) return;
+    if (!on || !ctx || ctx.state !== "running") return;
     const now = ctx.currentTime, k = moodAt(p), M = MOODS[k];
     setPad(k);
     lp.frequency.setTargetAtTime(1400 + 2600 * Math.min(1.2, M.bright) * (1 - 0.45 * (s.gloom || 0)), now, 1.2);
@@ -184,8 +184,10 @@
 
   // --- кнопка ---
   const btn = document.getElementById("sound");
+  const audible = () => on && ctx && ctx.state === "running";
   function paint() {
     if (!btn) return;
+    const on = audible();
     btn.classList.toggle("is-on", on);
     btn.setAttribute("aria-pressed", String(on));
     btn.setAttribute("aria-label", on ? "Выключить музыку" : "Включить музыку");
@@ -193,15 +195,23 @@
   }
   function start() {
     if (!ctx && !init()) return;
-    if (ctx.state !== "running") ctx.resume();
     on = true;
     lastP = -1;
+    paint();
+    if (ctx.state === "running") kick();
+    else {
+      ctx.onstatechange = () => { if (ctx.state === "running" && on) { ctx.onstatechange = null; kick(); paint(); } };
+      const r = ctx.resume();
+      if (r && r.catch) r.catch(() => {});
+    }
+  }
+  // звук реально пошёл: плавно поднимаем громкость и встречаем колокольчиками
+  function kick() {
     const t = ctx.currentTime;
     master.gain.cancelScheduledValues(t);
     master.gain.setValueAtTime(master.gain.value, t);
     master.gain.linearRampToValueAtTime(1.8, t + 2.5);
     sparkle(MOODS[0].scale, 7, t + 0.1, 0);
-    paint();
   }
   function stop() {
     on = false;
@@ -215,22 +225,28 @@
     paint();
   }
   const save = (v) => { try { localStorage.setItem(KEY, v ? "1" : "0"); } catch (e) {} };
-  if (btn) btn.addEventListener("click", () => { wanted = !on; save(wanted); wanted ? start() : stop(); });
+  if (btn) btn.addEventListener("click", () => { wanted = !audible(); save(wanted); wanted ? start() : stop(); });
 
-  // музыка включена по умолчанию (пока человек сам её не выключит) и стартует
-  // с первого касания/прокрутки — без жеста браузер звучать не даёт
+  // музыка включена по умолчанию (пока человек сам её не выключит).
+  // Пробуем заиграть сразу при входе; если браузер не разрешает звук без касания
+  // (iPhone, большинство телефонов), она зазвучит с первого касания или прокрутки
   try { wanted = localStorage.getItem(KEY) !== "0"; } catch (e) { wanted = true; }
-  const GESTURES = ["pointerdown", "touchend", "click", "keydown", "wheel"];
-  const first = (e) => {
+  const GESTURES = ["pointerdown", "pointerup", "touchend", "click", "keydown", "wheel"];
+  const unbind = () => GESTURES.forEach((n) => removeEventListener(n, first, true));
+  function first(e) {
     if (btn && btn.contains(e.target)) return;
-    if (!wanted) return;
+    if (!wanted) { unbind(); return; }
     if (!on) start();
-    if (ctx && ctx.state !== "running") ctx.resume().catch(() => {});
-    setTimeout(() => {
-      if (ctx && ctx.state === "running") GESTURES.forEach((n) => removeEventListener(n, first, true));
-    }, 300);
-  };
+    else if (ctx && ctx.state !== "running") { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+    setTimeout(() => { if (ctx && ctx.state === "running") unbind(); }, 300);
+  }
   GESTURES.forEach((n) => addEventListener(n, first, { capture: true, passive: true }));
+  // пробуем сразу, но не мешая первой отрисовке сада
+  if (wanted) {
+    const tryNow = () => { if (wanted && !on) start(); };
+    if (document.readyState === "complete") setTimeout(tryNow, 400);
+    else addEventListener("load", () => setTimeout(tryNow, 400), { once: true });
+  }
   document.addEventListener("visibilitychange", () => {
     if (!ctx || !on) return;
     document.hidden ? ctx.suspend() : ctx.resume();

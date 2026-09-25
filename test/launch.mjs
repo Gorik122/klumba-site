@@ -46,6 +46,8 @@ function startServer() {
 
 async function openPage(browser, port, viewport) {
   const page = await browser.newPage({ viewport });
+  // музыка в проверках не нужна: headless-браузер разрешает звук без касания
+  await page.addInitScript(() => { try { localStorage.setItem("klumba-sound", "0"); } catch (e) {} });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
