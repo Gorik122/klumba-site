@@ -1183,6 +1183,7 @@
       el.classList.add("is-hurt");
     }
     if (navigator.vibrate && !reduce.matches) navigator.vibrate([18, 40, 26]);
+    if (window.KlumbaMusic) window.KlumbaMusic.hurt();
   }
   captionEl.addEventListener("animationend", (e) => { if (e.target === captionEl) captionEl.classList.remove("is-hurt"); });
   let capKey = "";
@@ -1551,6 +1552,11 @@
 
     // ----- подпись и подсказка -----
     caption(p, st);
+    if (window.KlumbaMusic) {
+      let pulled = 0;
+      for (const S of st) if (S.u > 0.84) pulled++;
+      window.KlumbaMusic.frame(p, { gloom, pulled });
+    }
     // колючек столько, сколько сорняков сейчас в земле
     let bad = 0;
     for (const S of st) bad += range(S.g, 0.2, 0.5) * (1 - range(S.u, 0.7, 0.9));

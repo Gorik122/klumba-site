@@ -29,6 +29,10 @@
 
         <header class="top">
           <div class="brand"><i></i>клумба</div>
+          <button class="sound" id="sound" type="button" aria-pressed="false" aria-label="Включить музыку">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path class="sound__note" d="M8 14.5V4.2l8-1.7v10.3"/><circle cx="6" cy="14.6" r="2.2"/><circle cx="14" cy="12.8" r="2.2"/><path class="sound__off" d="M3 3l14 14"/></svg>
+            <span class="sound__label">музыка</span>
+          </button>
           <ol class="dots" id="dots" aria-hidden="true"></ol>
         </header>
 
@@ -53,6 +57,7 @@
     </section>
   </main>
 
+  <script src="music.js"></script>
   <script src="garden.js"></script>
 </body>
 </html>
