@@ -44,11 +44,11 @@
     master.connect(ctx.destination);
     lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 5200;
+    lp.frequency.value = 3600;
     lp.connect(master);
-    dry = ctx.createGain(); dry.gain.value = 0.75; dry.connect(lp);
-    const rev = ctx.createConvolver(); rev.buffer = impulse(3.4);
-    wet = ctx.createGain(); wet.gain.value = 0.55;
+    dry = ctx.createGain(); dry.gain.value = 0.6; dry.connect(lp);
+    const rev = ctx.createConvolver(); rev.buffer = impulse(5.2);
+    wet = ctx.createGain(); wet.gain.value = 0.8;
     rev.connect(wet); wet.connect(lp);
     dry.rev = rev;
     return true;
@@ -63,9 +63,9 @@
   function chime(m, t, vel, dec, pan) {
     const f = hz(m), g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vel, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(vel, t + 0.03);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
-    [[1, 1], [2, 0.28], [3.01, 0.1], [4.2, 0.05]].forEach(([k, a]) => {
+    [[1, 1], [2, 0.18], [3.01, 0.05], [0.5, 0.12]].forEach(([k, a]) => {
       const o = ctx.createOscillator(), og = ctx.createGain();
       o.type = "sine";
       o.frequency.value = f * k;
@@ -85,15 +85,15 @@
       const old = pad;
       old.g.gain.cancelScheduledValues(t);
       old.g.gain.setValueAtTime(old.g.gain.value, t);
-      old.g.gain.linearRampToValueAtTime(0, t + 2.6);
-      setTimeout(() => old.oscs.forEach((o) => { try { o.stop(); } catch (e) {} }), 3000);
+      old.g.gain.linearRampToValueAtTime(0, t + 5);
+      setTimeout(() => old.oscs.forEach((o) => { try { o.stop(); } catch (e) {} }), 5400);
     }
     const g = ctx.createGain(), f = ctx.createBiquadFilter();
     f.type = "lowpass";
-    f.frequency.value = 500 + 900 * M.bright;
+    f.frequency.value = 380 + 620 * M.bright;
     f.Q.value = 0.4;
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.055, t + 3);
+    g.gain.linearRampToValueAtTime(0.07, t + 5);
     f.connect(g);
     out(g);
     const oscs = [];
@@ -106,7 +106,7 @@
         og.gain.value = 1 / M.pad.length;
         // медленное «дыхание» фона
         const lfo = ctx.createOscillator(), lg = ctx.createGain();
-        lfo.frequency.value = 0.07 + 0.05 * i;
+        lfo.frequency.value = 0.04 + 0.03 * i;
         lg.gain.value = 0.35 / M.pad.length;
         lfo.connect(lg); lg.connect(og.gain);
         o.connect(og); og.connect(f);
@@ -120,7 +120,7 @@
   function sparkle(scale, n, t, dir) {
     for (let i = 0; i < n; i++) {
       const m = scale[Math.min(scale.length - 1, i % scale.length)] + (i >= scale.length ? 12 : 0);
-      chime(dir > 0 ? m + 12 : m, t + i * 0.07, 0.09, 1.6, (i / n) * 1.2 - 0.6);
+      chime(dir > 0 ? m + 12 : m, t + i * 0.13, 0.06, 2.8, (i / n) * 1.2 - 0.6);
     }
   }
 
@@ -129,7 +129,7 @@
     if (!on || !ctx) return;
     const now = ctx.currentTime, k = moodAt(p), M = MOODS[k];
     setPad(k);
-    lp.frequency.setTargetAtTime(1800 + 4200 * Math.min(1.2, M.bright) * (1 - 0.45 * (s.gloom || 0)), now, 0.4);
+    lp.frequency.setTargetAtTime(1400 + 2600 * Math.min(1.2, M.bright) * (1 - 0.45 * (s.gloom || 0)), now, 1.2);
 
     if (lastP < 0) lastP = p;
     const dp = p - lastP;
@@ -139,20 +139,20 @@
     if (Math.abs(dp) > 0.00002) lastScroll = now;
 
     // шаг прокрутки = нота; вниз — мелодия поднимается, вверх — спускается
-    if (acc > 0.0045 && now - lastNote > 0.085) {
+    if (acc > 0.0065 && now - lastNote > 0.17) {
       acc = 0;
       lastNote = now;
       step += dp >= 0 ? 1 : -1;
       const L = M.scale.length, i = ((step % (L * 2 - 2)) + (L * 2 - 2)) % (L * 2 - 2);
       const idx = i < L ? i : L * 2 - 2 - i;
-      chime(M.scale[idx], now, 0.07 + Math.min(0.06, Math.abs(dp) * 8), 1.3 + 0.8 * M.bright, (idx / L) * 1.1 - 0.55);
+      chime(M.scale[idx], now, 0.05 + Math.min(0.03, Math.abs(dp) * 5), 2.4 + 1.2 * M.bright, (idx / L) * 1.1 - 0.55);
     }
 
     // в тишине шкатулка тихо перебирает сама
-    if (now - lastScroll > 1.2 && now > idleT) {
-      idleT = now + 1.4 + Math.random() * 1.8;
+    if (now - lastScroll > 1.8 && now > idleT) {
+      idleT = now + 2.4 + Math.random() * 2.6;
       const m = M.scale[Math.floor(Math.random() * M.scale.length)];
-      chime(m + (Math.random() < 0.3 ? 12 : 0), now, 0.035, 2.2, Math.random() - 0.5);
+      chime(m + (Math.random() < 0.25 ? 12 : 0), now, 0.03, 3.4, Math.random() - 0.5);
     }
 
     // события истории (только вперёд)
@@ -174,10 +174,10 @@
     o.frequency.setValueAtTime(110, t);
     o.frequency.exponentialRampToValueAtTime(38, t + 0.45);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    g.gain.exponentialRampToValueAtTime(0.32, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
     o.connect(g); g.connect(lp);
-    o.start(t); o.stop(t + 0.75);
+    o.start(t); o.stop(t + 0.95);
     chime(63, t + 0.02, 0.07, 1.8, -0.3);
     chime(64, t + 0.02, 0.06, 1.8, 0.3);
   }
@@ -199,7 +199,7 @@
     const t = ctx.currentTime;
     master.gain.cancelScheduledValues(t);
     master.gain.setValueAtTime(master.gain.value, t);
-    master.gain.linearRampToValueAtTime(0.9, t + 1.2);
+    master.gain.linearRampToValueAtTime(1.8, t + 2.5);
     sparkle(MOODS[0].scale, 7, t + 0.1, 0);
     paint();
   }
