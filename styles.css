@@ -239,11 +239,40 @@ body {
   width: min(420px, 33vw);
   padding: 30px 30px 28px;
   border-radius: 28px;
-  background: rgba(255, 250, 252, .86);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow: 0 24px 60px rgba(46, 24, 70, .18), inset 0 0 0 1px rgba(255, 255, 255, .7);
+  background: rgba(255, 250, 252, .55);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 24px 60px rgba(46, 24, 70, .16), inset 0 0 0 1px rgba(255, 255, 255, .55);
+  text-align: center;
 }
+.caption .cap-text { position: relative; }
+.chips { justify-content: center; }
+
+/* лоза по краю карточки */
+.vine {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  overflow: visible;
+  pointer-events: none;
+}
+.vine__stem {
+  fill: none;
+  stroke: #6f9b3d;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  opacity: .85;
+  transition: stroke .8s;
+}
+.vine__stem--b { stroke: #8fbd58; stroke-width: 1; opacity: .7; }
+.caption.is-thorny .vine__stem { stroke: #6b5646; }
+.caption.is-thorny .vine__stem--b { stroke: #8a7360; }
+.vine__leaf, .vine__thorn {
+  transition: transform .55s cubic-bezier(.34, 1.56, .64, 1), opacity .35s;
+}
+.vine__thorn { transform: scale(0); opacity: 0; }
+.is-thorn > .vine__leaf { transform: scale(0); opacity: 0; }
+.is-thorn > .vine__thorn { transform: scale(1); opacity: 1; }
 .caption .in { animation: capIn .55s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes capIn {
   from { opacity: 0; transform: translateY(10px); }

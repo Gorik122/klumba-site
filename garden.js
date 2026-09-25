@@ -1101,6 +1101,80 @@
   mapEl.addEventListener("animationend", (e) => e.target.classList && e.target.classList.remove("is-pulse"));
 
   const captionEl = $("caption");
+  // рамка-лоза вокруг карточки: листья, которые по ходу истории сменяются колючками
+  captionEl.innerHTML = `<svg class="vine" aria-hidden="true"></svg><div class="cap-text"></div>`;
+  const vineEl = captionEl.firstChild, capText = captionEl.lastChild;
+  const NS = "http://www.w3.org/2000/svg", PAD = 9;
+  let vineSlots = [], vineKey = "", thornShown = -1;
+  function buildVine() {
+    const w = captionEl.offsetWidth, h = captionEl.offsetHeight;
+    const key = w + "x" + h;
+    if (!w || key === vineKey) return;
+    vineKey = key;
+    const rad = parseFloat(getComputedStyle(captionEl).borderTopLeftRadius) || 22;
+    const W = w + PAD * 2, H = h + PAD * 2;
+    vineEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    vineEl.setAttribute("width", W);
+    vineEl.setAttribute("height", H);
+    // контур карточки, по которому вьётся лоза
+    const r = Math.min(rad, w / 2, h / 2), x0 = PAD, y0 = PAD, x1 = PAD + w, y1 = PAD + h;
+    const guide = document.createElementNS(NS, "path");
+    guide.setAttribute("d", `M${x0 + r} ${y0}H${x1 - r}A${r} ${r} 0 0 1 ${x1} ${y0 + r}V${y1 - r}A${r} ${r} 0 0 1 ${x1 - r} ${y1}H${x0 + r}A${r} ${r} 0 0 1 ${x0} ${y1 - r}V${y0 + r}A${r} ${r} 0 0 1 ${x0 + r} ${y0}Z`);
+    vineEl.innerHTML = "";
+    vineEl.appendChild(guide);
+    const L = guide.getTotalLength();
+    const at = (s) => {
+      s = ((s % L) + L) % L;
+      const a = guide.getPointAtLength(s), b = guide.getPointAtLength((s + 1.5) % L), c = guide.getPointAtLength((s - 1.5 + L) % L);
+      const tx = b.x - c.x, ty = b.y - c.y, n = Math.hypot(tx, ty) || 1;
+      return { x: a.x, y: a.y, tx: tx / n, ty: ty / n, nx: ty / n, ny: -tx / n };
+    };
+    // два стебля, переплетающиеся вдоль края
+    let d1 = "", d2 = "";
+    for (let s = 0; s <= L; s += 4) {
+      const q = at(s), o = 1.9 * Math.sin(s / 11);
+      d1 += (s ? "L" : "M") + n1(q.x + q.nx * o) + " " + n1(q.y + q.ny * o);
+      d2 += (s ? "L" : "M") + n1(q.x - q.nx * o) + " " + n1(q.y - q.ny * o);
+    }
+    let html = `<path class="vine__stem" d="${d1}Z"/><path class="vine__stem vine__stem--b" d="${d2}Z"/>`;
+    const rv = makeRng(31);
+    const slots = [];
+    for (let s = 6; s < L - 10; s += 17 + rv() * 14) {
+      const q = at(s), side = rv() < 0.62 ? 1 : -1;
+      const ang = Math.atan2(q.ty, q.tx) * DEG;
+      const tilt = (rv() < 0.5 ? 1 : -1);
+      const sz = 0.75 + rv() * 0.5;
+      const leafA = ang + tilt * 180 * (rv() < 0.5 ? 0 : 1) - side * 38; // лист ложится вдоль лозы
+      const thornA = Math.atan2(q.ny * side, q.nx * side) * DEG + (rv() - 0.5) * 50; // колючка торчит наружу или внутрь
+      const col = pick(rv, ["#7fae4a", "#6a9c3c", "#94c160"]);
+      const bloom = rv() < 0.09;
+      html += `<g transform="translate(${n1(q.x + q.nx * side * 1.2)} ${n1(q.y + q.ny * side * 1.2)})">` +
+        `<g class="vine__leaf" style="transition-delay:${n1(rv() * 0.35)}s"><g transform="rotate(${n1(leafA)}) scale(${f2(sz)})">` +
+        (bloom
+          ? `<circle cx="3" cy="-3" r="2.3" fill="#f6a9c6"/><circle cx="6" cy="0" r="2.3" fill="#f6a9c6"/><circle cx="3" cy="3" r="2.3" fill="#f6a9c6"/><circle cx="0" cy="0" r="2.3" fill="#f6a9c6"/><circle cx="3" cy="0" r="1.5" fill="#f3cf5e"/>`
+          : `<path d="M0 0C3 -3.4 8.5 -3.8 12 0C8.5 3.8 3 3.4 0 0Z" fill="${col}"/><path d="M1 0L10.5 0" stroke="#dcefc3" stroke-width=".6" opacity=".7"/>`) +
+        `</g></g>` +
+        `<g class="vine__thorn" style="transition-delay:${n1(rv() * 0.35)}s"><g transform="rotate(${n1(thornA)}) scale(${f2(1 + sz * 0.45)})"><path d="M-1 -2.2L9.5 0L-1 2.2Z" fill="#4a3829"/><path d="M0 -1L7.5 0" stroke="#8a6a52" stroke-width=".5"/></g></g></g>`;
+      slots.push({ rank: rv() });
+    }
+    vineEl.innerHTML = html;
+    vineSlots = [...vineEl.querySelectorAll(":scope > g")].map((g, i) => ({ g, rank: slots[i].rank, on: false }));
+    thornShown = -1;
+  }
+  function setThorns(frac) {
+    frac = Math.round(frac * 24) / 24;
+    if (frac === thornShown) return;
+    thornShown = frac;
+    captionEl.classList.toggle("is-thorny", frac > 0.3);
+    for (const S of vineSlots) {
+      const on = S.rank < frac;
+      if (on !== S.on) {
+        S.on = on;
+        S.g.classList.toggle("is-thorn", on);
+      }
+    }
+  }
+  if ("ResizeObserver" in window) new ResizeObserver(() => { buildVine(); const f = thornShown; thornShown = -1; setThorns(Math.max(0, f)); }).observe(captionEl);
   const stageEl = $("stage");
   function hurt() {
     for (const el of [captionEl, stageEl]) {
@@ -1147,7 +1221,7 @@
     if (key !== capKey) {
       const prev = capKey;
       capKey = key;
-      captionEl.innerHTML = `<div class="in">${html}</div>`;
+      capText.innerHTML = `<div class="in">${html}</div>`;
       measureCaption();
       // новая чужая фраза бьёт: карточка вздрагивает, сцену сжимает болью
       const wi = key[0] === "w" ? +key.slice(1) : -1;
@@ -1477,6 +1551,10 @@
 
     // ----- подпись и подсказка -----
     caption(p, st);
+    // колючек столько, сколько сорняков сейчас в земле
+    let bad = 0;
+    for (const S of st) bad += range(S.g, 0.2, 0.5) * (1 - range(S.u, 0.7, 0.9));
+    setThorns(bad / 6);
     hint.style.opacity = p < 0.012 ? 1 : 0;
     stageFade.style.opacity = f2(smooth(range(p, 0.965, 1)));
 
