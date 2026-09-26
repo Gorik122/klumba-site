@@ -21,7 +21,7 @@
   ];
   const moodAt = (p) => { let k = 0; for (let i = 0; i < MOODS.length; i++) if (p >= MOODS[i].at) k = i; return k; };
 
-  let ctx = null, master, dry, wet, lp, on = false, wanted = false;
+  let ctx = null, master, dry, wet, lp, duckG, on = false, wanted = false, wasAudible = false;
   let pad = null, padMood = -1, lastP = -1, acc = 0, step = 0, lastNote = 0, lastScroll = 0, idleT = 0;
   let pulledSeen = 0, girlSeen = false, finSeen = false;
 
@@ -45,7 +45,11 @@
     lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 3600;
-    lp.connect(master);
+    // приглушение музыки, пока звучит голос
+    duckG = ctx.createGain();
+    duckG.gain.value = 1;
+    lp.connect(duckG);
+    duckG.connect(master);
     dry = ctx.createGain(); dry.gain.value = 0.6; dry.connect(lp);
     const rev = ctx.createConvolver(); rev.buffer = impulse(4.2);
     wet = ctx.createGain(); wet.gain.value = 0.8;
@@ -192,6 +196,10 @@
     btn.setAttribute("aria-pressed", String(on));
     btn.setAttribute("aria-label", on ? "Выключить музыку" : "Включить музыку");
     btn.querySelector(".sound__label").textContent = on ? "звук вкл" : "музыка";
+    if (on !== wasAudible) {
+      wasAudible = on;
+      dispatchEvent(new CustomEvent("klumba:sound", { detail: on }));
+    }
   }
   function start() {
     if (!ctx && !init()) return;
@@ -259,5 +267,10 @@
     sparkle(MOODS[7].scale, 6, ctx.currentTime, 1);
   }
 
-  window.KlumbaMusic = { frame, hurt, bloom, get on() { return on; }, get audible() { return !!audible(); } };
+  function duck(v) {
+    if (!ctx || !duckG) return;
+    duckG.gain.setTargetAtTime(v ? 0.3 : 1, ctx.currentTime, 0.35);
+  }
+
+  window.KlumbaMusic = { frame, hurt, bloom, duck, get on() { return on; }, get audible() { return !!audible(); } };
 })();

@@ -8,15 +8,16 @@
     name: "Надежда",
     telegram: "", // например "https://t.me/username"
     whatsapp: "", // например "https://wa.me/79001234567"
-    role: "", // кто она: «психолог», «гипнотерапевт», «коуч»…
+    role: "гипнотерапевт",
     format: "", // «онлайн, 60–90 минут»
     price: "", // «5 000 ₽ за сессию»
     about:
       "Я не обрываю листья и не уговариваю «просто думать позитивно». Вместе мы находим фразу, из которой вырос сорняк, и вынимаем его с корнем — бережно, без боли ради боли. А на освободившемся месте ты сама решаешь, что посадить.",
     reviews: [], // [{ text: "…", who: "Анна, 34" }] — только настоящие, с согласия
     voice: {
-      greeting: "", // "audio/privet.mp3"
-      story: {} // озвучка истории по карточкам: { intro: "audio/story/intro.mp3", w0: "…", … }
+      greeting: "audio/privet.mp3",
+      // озвучка истории по карточкам
+      story: Object.fromEntries(["intro", "w0", "w1", "w2", "w3", "w4", "w5", "choke", "girl", "dig", "p0", "t0", "p1", "t1", "p2", "t2", "p3", "t3", "p4", "t4", "p5", "t5", "fin"].map((k) => [k, `audio/story/${k}.mp3`]))
     }
   };
   /* ============================================================== */
@@ -32,6 +33,7 @@
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) { /* нет вибро */ } };
+  const duck = (v) => { try { window.KlumbaMusic && window.KlumbaMusic.duck && window.KlumbaMusic.duck(v); } catch (e) { /* без звука */ } };
   const bloomSound = () => { try { window.KlumbaMusic && window.KlumbaMusic.bloom && window.KlumbaMusic.bloom(); } catch (e) { /* без звука */ } };
   function rng(seed) {
     let a = seed >>> 0;
@@ -859,15 +861,18 @@
       gVoice.addEventListener("click", () => {
         if (a.paused) {
           a.play().catch(() => {});
+          duck(true);
           gVoice.classList.add("is-on");
           if (lbl) lbl.textContent = "пауза";
         } else {
           a.pause();
+          duck(false);
           gVoice.classList.remove("is-on");
           if (lbl) lbl.textContent = "послушать Надежду";
         }
       });
       a.addEventListener("ended", () => {
+        duck(false);
         gVoice.classList.remove("is-on");
         if (lbl) lbl.textContent = "послушать Надежду";
       });
@@ -879,15 +884,50 @@
      ================================================================ */
   const story = KLUMBA.voice.story || {};
   if (Object.keys(story).length) {
-    let cur = null;
-    addEventListener("klumba:beat", (e) => {
-      const src = story[e.detail];
+    let cur = null, curKey = window.KlumbaBeatKey || "", playedKey = "";
+    const cache = {};
+    const clip = (k) => (cache[k] = cache[k] || Object.assign(new Audio(story[k]), { preload: "auto" }));
+    const stop = () => {
+      if (cur) {
+        cur.pause();
+        cur = null;
+      }
+      duck(false);
+    };
+    const play = (k) => {
       const M = window.KlumbaMusic;
-      if (!src || !M || !M.audible) return;
+      if (!story[k] || !M || !M.audible) return;
       if (cur) cur.pause();
-      cur = new Audio(src);
-      cur.volume = 0.95;
-      cur.play().catch(() => {});
+      cur = clip(k);
+      cur.currentTime = 0;
+      playedKey = k;
+      duck(true);
+      cur.onended = () => {
+        if (cur && cur === cache[k]) duck(false);
+      };
+      cur.play().catch(() => duck(false));
+      // заранее подгрузить следующую карточку
+      const ks = Object.keys(story), i = ks.indexOf(k);
+      if (ks[i + 1]) clip(ks[i + 1]);
+    };
+    // карточка уже на экране, а музыка уже играет (вернулись на вкладку и т. п.)
+    setTimeout(() => {
+      curKey = window.KlumbaBeatKey || curKey;
+      if (curKey && !playedKey) play(curKey);
+    }, 0);
+    addEventListener("klumba:beat", (e) => {
+      curKey = e.detail;
+      play(curKey);
     });
+    // музыка включилась после первого касания — озвучить карточку, что уже на экране
+    addEventListener("klumba:sound", (e) => {
+      if (e.detail && curKey && playedKey !== curKey) play(curKey);
+      if (!e.detail) stop();
+    });
+    // ушли ниже истории — голос замолкает
+    const outro = $("outro");
+    if (outro && "IntersectionObserver" in window) {
+      new IntersectionObserver(([en]) => { if (en.isIntersecting && en.intersectionRatio > 0.4) stop(); }, { threshold: [0.4] }).observe(outro);
+    }
   }
 })();

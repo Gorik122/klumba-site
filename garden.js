@@ -1281,6 +1281,7 @@
       capKey = key;
       capText.innerHTML = `<div class="in">${html}</div>`;
       measureCaption();
+      window.KlumbaBeatKey = key;
       window.dispatchEvent(new CustomEvent("klumba:beat", { detail: key }));
       // новая чужая фраза бьёт: карточка вздрагивает, сцену сжимает болью
       const wi = key[0] === "w" ? +key.slice(1) : -1;
