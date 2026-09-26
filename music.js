@@ -253,5 +253,11 @@
   });
   paint();
 
-  window.KlumbaMusic = { frame, hurt, get on() { return on; } };
+  // цветок распустился в интерактивных блоках под историей
+  function bloom() {
+    if (!audible()) return;
+    sparkle(MOODS[7].scale, 6, ctx.currentTime, 1);
+  }
+
+  window.KlumbaMusic = { frame, hurt, bloom, get on() { return on; }, get audible() { return !!audible(); } };
 })();

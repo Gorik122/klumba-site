@@ -51,13 +51,74 @@
         <p class="map__hint">Нажми на сорняк — посмотри, откуда растёт его корень</p>
         <ol class="map" id="map"></ol>
 
-        <!-- Вставь сюда свою ссылку: Telegram, WhatsApp или форму записи -->
-        <a class="btn" href="#" id="cta">Записаться на сессию</a>
+        <!-- ссылка берётся из настроек в extras.js -->
+        <a class="btn" href="#gardener" id="cta">Записаться на сессию</a>
+      </div>
+    </section>
+
+    <section class="xsec xsec--pull" id="pull">
+      <div class="outro__inner">
+        <p class="kicker">попробуй сама</p>
+        <h2>Вытащи сорняк с&nbsp;корнем</h2>
+        <p class="outro__lead">Зажми сорняк и тяни вверх. Он будет сопротивляться — так и бывает с тем, что росло в тебе годами. Можно просто нажать.</p>
+        <div class="pull" id="pullStage"></div>
+        <div class="pull__done" id="pullDone" hidden>
+          <p class="pull__doneT">Так ощущается прополка. На сессии — по-настоящему: с&nbsp;теми корнями, что растут именно в&nbsp;тебе.</p>
+          <a class="btn" href="#gardener" id="pullCta">Хочу так же со своими</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="xsec xsec--bed" id="mybed">
+      <div class="outro__inner">
+        <p class="kicker">моя клумба</p>
+        <h2>Что посадили в&nbsp;тебя?</h2>
+        <p class="outro__lead">Отметь фразы, которые ты слышала в детстве. Клумба вырастет из&nbsp;твоих сорняков — и покажет главный корень.</p>
+        <div class="bed">
+          <div class="phrases" id="chips"></div>
+          <div class="bed__out">
+            <svg class="bed__svg" id="myGarden" role="img" aria-label="Моя клумба"></svg>
+            <div class="bed__sum" id="mySum" aria-live="polite"></div>
+            <div class="bed__actions" id="myActions" hidden>
+              <button class="btn" type="button" id="myStory">Сохранить для сторис</button>
+              <a class="btn btn--ghost" href="#gardener" id="mySend" target="_blank" rel="noopener">Отправить Надежде</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="xsec xsec--seed" id="seed">
+      <div class="outro__inner">
+        <div class="seed">
+          <div class="seed__sprout" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p class="kicker">семечко дня · <span id="seedDate"></span></p>
+          <p class="seed__text" id="seedText"></p>
+          <p class="seed__how">Посади его сегодня: скажи себе утром и&nbsp;вечером. Завтра будет новое.</p>
+          <div class="seed__actions">
+            <button class="btn" type="button" id="seedStory">В сторис</button>
+            <a class="btn btn--ghost" href="#gardener" id="seedSub">Каждое утро — в Telegram</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="xsec xsec--gardener" id="gardener">
+      <div class="outro__inner">
+        <p class="kicker">садовница</p>
+        <h2 id="gName">Надежда</h2>
+        <p class="outro__lead" id="gAbout"></p>
+        <button class="voice" type="button" id="gVoice" hidden><i aria-hidden="true"></i><span>послушать Надежду</span></button>
+        <ul class="facts" id="gFacts" hidden></ul>
+        <ul class="buds" id="gReviews"></ul>
+        <div class="gcta" id="gCta"></div>
+        <p class="gsoon" id="gSoon">Контакты для записи появятся здесь совсем скоро.</p>
       </div>
     </section>
   </main>
 
   <script src="music.js"></script>
   <script src="garden.js"></script>
+  <script src="extras.js"></script>
 </body>
 </html>

@@ -1035,6 +1035,62 @@
   });
 
   // разворот программы: откуда она взялась у поколения, выросшего в 90-е и 2000-е
+  /* =========================================================
+     рисунки и данные для интерактивных блоков под историей (extras.js)
+     ========================================================= */
+  window.KlumbaArt = {
+    weed(seed, h) {
+      const r = makeRng(seed);
+      const P3 = [(r() - 0.5) * 34, -h];
+      const P1 = [(r() - 0.5) * 34, -h * 0.34];
+      const P2 = [P3[0] + (r() - 0.5) * 44, -h * 0.7];
+      const stem = [[0, 0], P1, P2, P3];
+      const stemD = `M0 0C${n1(P1[0])} ${n1(P1[1])} ${n1(P2[0])} ${n1(P2[1])} ${n1(P3[0])} ${n1(P3[1])}`;
+      let br = "", sd = "";
+      for (let k = 0; k < 9; k++) {
+        const t = 0.3 + (0.6 * k) / 8 + (r() - 0.5) * 0.04;
+        const S = bez(stem, t), side = k % 2 ? 1 : -1;
+        const ang = (-90 + side * (30 + r() * 30)) / DEG;
+        const L = (38 + r() * 46) * (1.15 - t * 0.5);
+        const E = [S[0] + Math.cos(ang) * L, S[1] + Math.sin(ang) * L];
+        const C = [S[0] + Math.cos(ang) * L * 0.45 + side * 10, S[1] + Math.sin(ang) * L * 0.45 + 8];
+        br += `<path d="M${n1(S[0])} ${n1(S[1])}Q${n1(C[0])} ${n1(C[1])} ${n1(E[0])} ${n1(E[1])}" stroke="#7d6a44" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+        sd += `<g transform="translate(${n1(E[0])} ${n1(E[1])})">${seedCluster(r)}</g>`;
+      }
+      const leaves = [-172, -150, -122, -58, -30, -8].map((a) => ({ a: n1(a + (r() - 0.5) * 12), len: 36 + r() * 22, wid: 11 + r() * 4, tx: 0, ty: 0, t: 0 }));
+      [0.22, 0.4, 0.58].forEach((t, k) => {
+        const A = bez(stem, t), side = k % 2 ? 1 : -1;
+        leaves.push({ a: n1(side > 0 ? -28 - r() * 20 : -152 + r() * 20), len: 24 + r() * 12, wid: 8 + r() * 3, tx: n1(A[0]), ty: n1(A[1]), t });
+      });
+      let thorns = "";
+      for (let k = 0; k < 7; k++) {
+        const t = 0.12 + k * 0.1, A = bez(stem, t), B = bez(stem, t + 0.01);
+        const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) || 1, s = k % 2 ? 1 : -1;
+        thorns += `M${n1(A[0])} ${n1(A[1])}l${n1((-dy / len) * 6 * s + (dx / len) * 3)} ${n1((dx / len) * 6 * s + (dy / len) * 3)}`;
+      }
+      return (
+        leaves.map((L) => `<g transform="translate(${L.tx} ${L.ty}) rotate(${L.a})"><path d="${spikyLeaf(L.len, L.wid)}" fill="${L.t ? "#4d5a2a" : "#55602f"}"/><path d="M2 0L${n1(L.len * 0.9)} 0" stroke="#87914f" stroke-width="1"/></g>`).join("") +
+        `<path d="${stemD}" stroke="#4b4128" stroke-width="6" fill="none" stroke-linecap="round"/>` +
+        `<path d="${thorns}" stroke="#574c31" stroke-width="1.6" stroke-linecap="round"/>` +
+        br + sd +
+        `<g transform="translate(${n1(P3[0])} ${n1(P3[1])})">${weedHead(r)}</g>`
+      );
+    },
+    root(seed, depth) {
+      const R = buildRoot(makeRng(seed), depth, depth * 0.5);
+      return (
+        `<path d="${R.glow}" stroke="#ff9cc0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".22"/>` +
+        `<path d="${R.polys}" fill="#e6d5b5" stroke="#9c815b" stroke-width=".8" stroke-linejoin="round"/>` +
+        `<path d="${R.hairs}" stroke="#d9c6a2" stroke-width=".7" fill="none" stroke-linecap="round"/>` +
+        `<path d="${R.hi}" stroke="#fbf3e4" stroke-width="1.4" fill="none" opacity=".55" stroke-linecap="round"/>`
+      );
+    },
+    flower(kind, seed, h) {
+      const P = GEN[kind](makeRng(seed), { h });
+      return P.body + (P.head ? `<g transform="translate(${n1(P.hx)} ${n1(P.hy)})">${P.head}</g>` : "");
+    }
+  };
+
   const ROOTS = [
     {
       child: "Девяностые, родители боятся всего: потерять работу, выделиться, привлечь внимание. На школьном концерте ты хочешь спеть соло, а мама шепчет: «Не позорься, стой со всеми». Ответила у доски неправильно — класс смеётся, учительница добавляет: «Умная нашлась».",
@@ -1067,6 +1123,7 @@
       life: "Ты откладываешь старт, пока «не будешь готова», — и готовой так и не становишься. Десятый курс вместо первого шага, всё должно быть идеально. Со стороны похоже на лень, а на деле это страх снова услышать тот голос из детства."
     }
   ];
+  window.KlumbaData = { WEEDS, ROOTS };
   const mapEl = $("map");
   mapEl.innerHTML = WEEDS.map((w, i) => {
     const R = ROOTS[i];
@@ -1224,6 +1281,7 @@
       capKey = key;
       capText.innerHTML = `<div class="in">${html}</div>`;
       measureCaption();
+      window.dispatchEvent(new CustomEvent("klumba:beat", { detail: key }));
       // новая чужая фраза бьёт: карточка вздрагивает, сцену сжимает болью
       const wi = key[0] === "w" ? +key.slice(1) : -1;
       const was = prev === "intro" ? -1 : prev[0] === "w" ? +prev.slice(1) : 99;
