@@ -6,8 +6,8 @@
   /* ================= НАСТРОЙКИ — данные Надежды ================= */
   const KLUMBA = {
     name: "Надежда",
-    telegram: "", // например "https://t.me/username"
-    whatsapp: "", // например "https://wa.me/79001234567"
+    telegram: "https://t.me/NadezhdaDar",
+    whatsapp: "https://wa.me/79935553303",
     role: "гипнотерапевт",
     format: "", // «онлайн, 60–90 минут»
     price: "", // «5 000 ₽ за сессию»
@@ -847,7 +847,7 @@
   if (gCta) {
     const links = [];
     if (KLUMBA.telegram) links.push(`<a class="btn" target="_blank" rel="noopener" href="${esc(KLUMBA.telegram)}?text=${encodeURIComponent("Здравствуйте, Надежда! Хочу на сессию.")}">Написать в Telegram</a>`);
-    if (KLUMBA.whatsapp) links.push(`<a class="btn btn--ghost" target="_blank" rel="noopener" href="${esc(KLUMBA.whatsapp)}">Написать в WhatsApp</a>`);
+    if (KLUMBA.whatsapp) links.push(`<a class="btn btn--ghost" target="_blank" rel="noopener" href="${esc(KLUMBA.whatsapp)}?text=${encodeURIComponent("Здравствуйте, Надежда! Хочу на сессию.")}">Написать в WhatsApp</a>`);
     gCta.innerHTML = links.join("");
     if (gSoon) gSoon.hidden = links.length > 0;
   }
