@@ -185,6 +185,7 @@ button, .btn {
 .stage::after { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity 1.2s ease;
   background: radial-gradient(circle at 50% 45%, rgb(255 236 170 / .75), rgb(246 184 207 / .35) 40%, transparent 70%); }
 .stage.is-bloom::after { opacity: 1; }
+.bars { margin: .2rem 0 .9rem; }
 .bars i { transition: background-color .5s ease, opacity .5s ease; }
 .bars i:not(.on) { opacity: .8; }
 .pills button { transition: transform .25s ease, background-color .25s, opacity .4s; }
