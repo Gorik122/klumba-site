@@ -32,7 +32,7 @@ function paint() {
     : drops >= dropsMax
       ? "Семь повторов. Цветок взошёл не от фразы, а потому что ты сделала это много раз."
       : `Повтор ${drops} из ${dropsMax}. Подсознание уже считает. Ещё ${dropsMax - drops}.`;
-  plant.src = drops === 0 ? "img/seed.png" : "img/rose.png";
+  plant.src = drops === 0 ? "img/seed.webp" : "img/rose.webp";
   plant.style.transform = `scale(${drops === 0 ? 0.55 : 0.35 + (drops / dropsMax) * 0.65})`;
   go.disabled = drops >= dropsMax;
   go.textContent = drops === 0 ? "Повторить один раз" : drops >= dropsMax ? "Цветок взошёл" : "Ещё один повтор";
