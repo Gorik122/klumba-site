@@ -1,0 +1,78 @@
+:root {
+  --ink: #2b2233;
+  --muted: #625670;
+  --pink: #d9558a;
+  --cream: #f6f0f8;
+  --serif: Fraunces, Georgia, serif;
+  --sans: Manrope, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+}
+img { max-width: 100%; display: block; }
+.wrap { max-width: 40rem; margin: 0 auto; padding: 4.5rem 1.25rem 5rem; }
+.brand, h1, h2, h3, .pull, .center { text-align: center; }
+.brand { color: var(--pink); font-weight: 700; letter-spacing: .04em; }
+.brand i {
+  display: inline-block; width: .55rem; height: .55rem; margin-right: .4rem;
+  border-radius: 50%; background: #ee8cb4; vertical-align: middle;
+}
+h1, h2, h3, .pull { font-family: var(--serif); font-weight: 500; line-height: 1.05; margin: 0; }
+h1 { font-size: clamp(3.2rem, 12vw, 5.5rem); }
+h1 svg { width: .62em; height: .62em; margin-left: .15em; vertical-align: -.02em; }
+h2 { font-size: clamp(2.4rem, 8vw, 3.6rem); margin-top: 3.5rem; }
+h3 { font-size: 1.85rem; margin-top: 2.2rem; }
+.kicker { text-align: center; letter-spacing: .16em; text-transform: uppercase; color: var(--pink); font-size: .72rem; font-weight: 700; }
+p { text-align: justify; hyphens: auto; color: #3b3144; }
+.pull { font-size: 1.55rem; margin: 1.4rem 0; color: var(--ink); }
+.pull.pink { color: var(--pink); }
+.mark { color: var(--pink); font-weight: 650; }
+.note { text-align: center; color: var(--pink); font-family: var(--serif); font-style: italic; margin: .35rem 0 0; }
+.frame, .card { border-radius: 1.6rem; overflow: hidden; }
+.frame { margin: 1.4rem 0; box-shadow: 0 18px 40px rgb(43 34 51 / .12); }
+.plants { display: flex; align-items: flex-end; justify-content: center; margin-top: -1rem; }
+.plants img { width: 7.2rem; }
+.mind { position: relative; }
+.mind p {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  margin: 0; text-align: center; letter-spacing: .12em; text-transform: uppercase;
+  font-family: var(--serif); color: rgb(43 34 51 / .8);
+}
+.mind .a { top: 26%; }
+.mind .b { top: 58%; }
+.cap { text-align: center; color: var(--muted); font-size: .9rem; }
+ol.steps { list-style: none; padding: 0; margin: 1rem 0 0; }
+ol.steps li { border-top: 1px solid rgb(43 34 51 / .12); padding: 1.1rem 0; }
+.num { font-family: var(--serif); color: #c7457a; font-style: italic; }
+.story { border-left: 2px solid rgb(217 85 138 / .5); padding-left: 1rem; }
+.grid { display: grid; gap: 1rem; }
+.card { background: #fff; border: 1px solid rgb(43 34 51 / .08); padding: 1.1rem; }
+.stage { position: relative; min-height: 13rem; display: flex; align-items: flex-end; justify-content: center; background: rgb(43 34 51 / .05); border-radius: 1.2rem; overflow: hidden; }
+.stage .soil { position: absolute; left: 0; right: 0; bottom: 0; height: 4.6rem; object-fit: cover; width: 100%; }
+.stage .plant { position: relative; width: 9rem; z-index: 1; }
+.pills { display: flex; flex-wrap: wrap; gap: .45rem; }
+button, .btn {
+  font: 600 .95rem/1 var(--sans); border-radius: 999px; min-height: 2.8rem;
+  padding: .7rem 1rem; cursor: pointer;
+}
+.pills button { background: #fff; border: 1px solid rgb(43 34 51 / .15); color: var(--ink); }
+.pills button:disabled { opacity: .4; }
+.go { width: 100%; border: 0; background: var(--pink); color: #fffafc; }
+.go:disabled { opacity: .45; }
+.bars { display: flex; gap: .35rem; }
+.bars i { flex: 1; height: .45rem; border-radius: 99px; background: rgb(43 34 51 / .12); }
+.bars i.on { background: var(--pink); }
+.tiny { letter-spacing: .14em; text-transform: uppercase; font-size: .72rem; font-weight: 700; color: rgb(43 34 51 / .5); text-align: center; }
+.actions { display: flex; flex-direction: column; gap: .6rem; margin-top: 1rem; }
+.actions a { text-align: center; text-decoration: none; }
+.actions .solid { background: var(--pink); color: #fffafc; }
+.actions .ghost { border: 1px solid rgb(217 85 138 / .4); color: var(--pink); background: transparent; }
+.link { background: none; border: 0; color: var(--pink); text-decoration: underline; padding: 0; }
+.quiet { color: var(--muted); font-size: .92rem; text-align: center; }
+@media (min-width: 800px) { .grid { grid-template-columns: 1fr 1fr; } }
