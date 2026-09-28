@@ -882,52 +882,128 @@
   /* ================================================================
      5. ГОЛОС ИСТОРИИ: каждая карточка — своя фраза (если файлы есть)
      ================================================================ */
+  // Голос идёт через тот же AudioContext, что и музыка: на iPhone он
+  // разблокируется первым касанием, и дальше фразы звучат при любой прокрутке
+  // (обычный <audio> iOS не даёт запустить из прокрутки — отсюда «местами молчит»).
   const story = KLUMBA.voice.story || {};
-  if (Object.keys(story).length) {
-    let cur = null, curKey = window.KlumbaBeatKey || "", playedKey = "";
-    const cache = {};
-    const clip = (k) => (cache[k] = cache[k] || Object.assign(new Audio(story[k]), { preload: "auto" }));
-    const stop = () => {
-      if (cur) {
-        cur.pause();
-        cur = null;
-      }
-      duck(false);
-    };
-    const play = (k) => {
-      const M = window.KlumbaMusic;
-      if (!story[k] || !M || !M.audible) return;
-      if (cur) cur.pause();
-      cur = clip(k);
-      cur.currentTime = 0;
-      playedKey = k;
-      duck(true);
-      cur.onended = () => {
-        if (cur && cur === cache[k]) duck(false);
+  const order = Object.keys(story);
+  if (order.length) {
+    const buf = {}, loading = {};
+    let src = null, gainN = null, playingKey = "", startedAt = 0, dur = 0;
+    let curKey = window.KlumbaBeatKey || "", pending = "", playedKey = "", prefetched = false;
+    const M = () => window.KlumbaMusic;
+    const ctxOf = () => { const m = M(); return m && m.ctx; };
+    const live = () => { const m = M(), c = ctxOf(); return !!(m && m.audible && c && c.state === "running"); };
+
+    function load(k) {
+      if (buf[k]) return Promise.resolve(buf[k]);
+      if (loading[k]) return loading[k];
+      const c = ctxOf();
+      if (!c || !story[k]) return Promise.resolve(null);
+      loading[k] = fetch(story[k])
+        .then((r) => r.arrayBuffer())
+        .then((ab) => new Promise((res, rej) => c.decodeAudioData(ab, res, rej)))
+        .then((b) => (buf[k] = b))
+        .catch(() => { delete loading[k]; return null; });
+      return loading[k];
+    }
+    async function prefetchAll() {
+      if (prefetched) return;
+      prefetched = true;
+      const i = Math.max(0, order.indexOf(curKey));
+      for (const k of order.slice(i).concat(order.slice(0, i))) await load(k);
+    }
+    function fadeOut(t = 0.28) {
+      if (!src) return;
+      const c = ctxOf(), now = c.currentTime;
+      try {
+        gainN.gain.cancelScheduledValues(now);
+        gainN.gain.setValueAtTime(gainN.gain.value, now);
+        gainN.gain.linearRampToValueAtTime(0, now + t);
+        src.onended = null;
+        src.stop(now + t + 0.02);
+      } catch (e) { /* уже остановлен */ }
+      src = null;
+      playingKey = "";
+    }
+    async function start(k) {
+      if (!live()) return;
+      const b = await load(k);
+      if (!b || !live() || k !== curKey) return; // пока грузилось, ушли дальше
+      fadeOut(0.25);
+      const c = ctxOf();
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(1, c.currentTime + 0.06);
+      g.connect(c.destination);
+      const s = c.createBufferSource();
+      s.buffer = b;
+      s.connect(g);
+      s.onended = () => {
+        if (src !== s) return;
+        src = null;
+        playingKey = "";
+        // пока фраза звучала, открылась новая карточка — теперь её очередь
+        if (pending && pending === curKey && pending !== k) {
+          const p = pending;
+          pending = "";
+          start(p);
+        } else {
+          pending = "";
+          duck(false);
+        }
       };
-      cur.play().catch(() => duck(false));
-      // заранее подгрузить следующую карточку
-      const ks = Object.keys(story), i = ks.indexOf(k);
-      if (ks[i + 1]) clip(ks[i + 1]);
-    };
-    // карточка уже на экране, а музыка уже играет (вернулись на вкладку и т. п.)
+      s.start();
+      src = s;
+      gainN = g;
+      playingKey = k;
+      playedKey = k;
+      startedAt = c.currentTime;
+      dur = b.duration;
+      duck(true);
+      const next = order[order.indexOf(k) + 1];
+      if (next) load(next);
+      prefetchAll();
+    }
+    function onBeat(k) {
+      curKey = k;
+      if (!live()) return;
+      if (!src) return start(k);
+      if (k === playingKey) return;
+      const c = ctxOf(), played = c.currentTime - startedAt, left = dur - played;
+      // фразу почти договорили — дать закончить и сразу следующую;
+      // иначе мягко погасить и начать новую
+      if (left < 1.6 || played / dur > 0.7) pending = k;
+      else start(k);
+    }
+    function stopAll() {
+      pending = "";
+      fadeOut(0.3);
+      duck(false);
+    }
+
+    addEventListener("klumba:beat", (e) => onBeat(e.detail));
+    addEventListener("klumba:sound", (e) => {
+      if (e.detail) {
+        curKey = window.KlumbaBeatKey || curKey;
+        if (curKey && playedKey !== curKey && !outroSeen) start(curKey);
+        else prefetchAll();
+      } else stopAll();
+    });
     setTimeout(() => {
       curKey = window.KlumbaBeatKey || curKey;
-      if (curKey && !playedKey) play(curKey);
+      if (live() && curKey && !playedKey) start(curKey);
     }, 0);
-    addEventListener("klumba:beat", (e) => {
-      curKey = e.detail;
-      play(curKey);
-    });
-    // музыка включилась после первого касания — озвучить карточку, что уже на экране
-    addEventListener("klumba:sound", (e) => {
-      if (e.detail && curKey && playedKey !== curKey) play(curKey);
-      if (!e.detail) stop();
-    });
     // ушли ниже истории — голос замолкает
+    let outroSeen = false;
     const outro = $("outro");
     if (outro && "IntersectionObserver" in window) {
-      new IntersectionObserver(([en]) => { if (en.isIntersecting && en.intersectionRatio > 0.4) stop(); }, { threshold: [0.4] }).observe(outro);
+      new IntersectionObserver(([en]) => {
+        outroSeen = en.isIntersecting && en.intersectionRatio > 0.4;
+        if (outroSeen) stopAll();
+      }, { threshold: [0, 0.4] }).observe(outro);
     }
+    // вкладку свернули — не продолжать фразу в фоне
+    document.addEventListener("visibilitychange", () => { if (document.hidden) stopAll(); });
   }
 })();

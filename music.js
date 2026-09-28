@@ -272,5 +272,5 @@
     duckG.gain.setTargetAtTime(v ? 0.3 : 1, ctx.currentTime, 0.35);
   }
 
-  window.KlumbaMusic = { frame, hurt, bloom, duck, get on() { return on; }, get audible() { return !!audible(); } };
+  window.KlumbaMusic = { frame, hurt, bloom, duck, get ctx() { return ctx; }, get on() { return on; }, get audible() { return !!audible(); } };
 })();
