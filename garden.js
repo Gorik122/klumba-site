@@ -1751,17 +1751,30 @@
   const HOLD = 0.0485;               // кадр начала: сорняков ещё нет
   const RESUME = 0.0492;             // с этого места история идёт дальше (сорняк №1)
   const BRIDGE_VH = 140;             // сколько прокрутки занимает мостик
-  const SPAN_VH = 1900 + BRIDGE_VH;  // полный ход прокрутки
-  const RA = (HOLD * 1900) / SPAN_VH;
+  const HOLD_VH = HOLD * 1900;
+  const PER_P = (1900 - HOLD_VH) / (1 - RESUME); // прокрутка (в vh) на единицу истории
+  // Финал («Это снова твой сад»): раньше на него уходило ~240vh прокрутки, в которой почти ничего
+  // не происходило: сцена стояла на месте, казалось, что сайт кончился, а листать надо было ещё
+  // 3–4 раза. Теперь весь финал — TAIL_VH: один свайп, и страница идёт дальше.
+  const TAIL_P = TL.finale;
+  const TAIL_VH = 70;
+  const SPAN_VH = HOLD_VH + BRIDGE_VH + (TAIL_P - RESUME) * PER_P + TAIL_VH;  // полный ход прокрутки
+  const RA = HOLD_VH / SPAN_VH;
   const RB = BRIDGE_VH / SPAN_VH;
-  const RK = (1 - RA - RB) / (1 - RESUME);
+  const RM = ((TAIL_P - RESUME) * PER_P) / SPAN_VH;   // основная история
+  const RT = TAIL_VH / SPAN_VH;                        // хвост финала
+  const RK = RM / (TAIL_P - RESUME);                   // сырой прокрутки на единицу истории
   const BR = { b: 0, on: false };
   function toStory(r) {
     if (r <= RA) return (BR.b = 0, BR.on = false, (r / RA) * HOLD);
     if (r < RA + RB) return (BR.b = (r - RA) / RB, BR.on = true, HOLD);
-    return (BR.b = 1, BR.on = false, RESUME + (r - RA - RB) / RK);
+    BR.b = 1; BR.on = false;
+    if (r < RA + RB + RM) return RESUME + (r - RA - RB) / RK;
+    return Math.min(1, TAIL_P + ((r - RA - RB - RM) / RT) * (1 - TAIL_P));
   }
-  const toRaw = (p) => (p <= HOLD ? (p / HOLD) * RA : p < RESUME ? RA + RB : RA + RB + (p - RESUME) * RK);
+  const toRaw = (p) => (p <= HOLD ? (p / HOLD) * RA : p < RESUME ? RA + RB : p < TAIL_P ? RA + RB + (p - RESUME) * RK : RA + RB + RM + ((p - TAIL_P) / (1 - TAIL_P)) * RT);
+  // высота дорожки считается из тех же чисел, чтобы прокрутка и история не расходились
+  $("track").style.height = (100 + SPAN_VH).toFixed(2) + "vh";
 
   // длина текущего абзаца истории в долях прокрутки
   function beatLen(p) {
@@ -1781,7 +1794,11 @@
   function beatLenRaw(r) {
     if (r < RA) return RA;
     if (r < RA + RB) return RB / 2;
-    return beatLen(RESUME + (r - RA - RB) / RK) * RK;
+    if (r >= RA + RB + RM) return RT * 3;
+    const p = RESUME + (r - RA - RB) / RK;
+    // финал: от начала до конца дорожки, с запасом — резкий свайп не должен упираться в лимит
+    if (p >= TL.finale) return (RA + RB + RM + RT - toRaw(TL.finale)) * 1.5;
+    return beatLen(p) * RK;
   }
 
   function scrollTarget() {
