@@ -44,7 +44,8 @@
       songLP.Q.value = 0.3;
       songG = ctx.createGain();
       songG.gain.value = 0.5;
-      src.connect(songLP); songLP.connect(songG); songG.connect(master);
+      // через приглушение: когда говорит Надежда, песня уходит на задний план
+      src.connect(songLP); songLP.connect(songG); songG.connect(duckG);
     } catch (e) { songEl = null; songOK = false; }
   }
   function playSong() {
@@ -96,7 +97,7 @@
     lp.frequency.value = 3600;
     // приглушение музыки, пока звучит голос
     duckG = ctx.createGain();
-    duckG.gain.value = 1;
+    duckG.gain.value = ducked ? DUCK : 1; // голос мог включиться раньше музыки
     lp.connect(duckG);
     duckG.connect(master);
     dry = ctx.createGain(); dry.gain.value = 0.6; dry.connect(lp);
@@ -330,10 +331,17 @@
     sparkle(MOODS[7].scale, 6, ctx.currentTime, 1);
   }
 
+  // пока звучит голос, музыка тихо на фоне (≈ −16 дБ): уходит быстро, возвращается мягко
+  const DUCK = 0.16;
+  let ducked = false;
   function duck(v) {
+    ducked = !!v;
     if (!ctx || !duckG) return;
-    duckG.gain.setTargetAtTime(v ? 0.3 : 1, ctx.currentTime, 0.35);
+    const t = ctx.currentTime;
+    duckG.gain.cancelScheduledValues(t);
+    duckG.gain.setValueAtTime(duckG.gain.value, t);
+    duckG.gain.setTargetAtTime(ducked ? DUCK : 1, t, ducked ? 0.12 : 0.6);
   }
 
-  window.KlumbaMusic = { frame, hurt, bloom, duck, get ctx() { return ctx; }, get on() { return on; }, get audible() { return !!audible(); }, get song() { return songMode; }, get songPlaying() { return !!(songEl && !songEl.paused); } };
+  window.KlumbaMusic = { frame, hurt, bloom, duck, get ducked() { return ducked; }, get duckLevel() { return duckG ? duckG.gain.value : 1; }, get ctx() { return ctx; }, get on() { return on; }, get audible() { return !!audible(); }, get song() { return songMode; }, get songPlaying() { return !!(songEl && !songEl.paused); } };
 })();

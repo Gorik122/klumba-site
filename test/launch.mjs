@@ -21,7 +21,7 @@ const PHRASES = [
 const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
 
 function startServer() {
-  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
+  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".mp3": "audio/mpeg" };
   const server = http.createServer((req, res) => {
     let pathname = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
     if (pathname.endsWith("/")) pathname += "index.html";
@@ -37,7 +37,7 @@ function startServer() {
         res.end();
         return;
       }
-      res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream" });
+      res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream", "Content-Length": body.length });
       res.end(body);
     });
   });
@@ -189,6 +189,39 @@ test("labels stay on screen on a phone", async () => {
         assert.ok(t.left >= 0 && t.right <= s.width, `p=${p} "${t.text}" ${t.left}..${t.right}`);
       }
     }
+    assert.deepEqual(errors, []);
+    await page.close();
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+test("music steps back while Nadezhda's voice message plays", async () => {
+  const server = await startServer();
+  const browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.addInitScript(() => { try { localStorage.setItem("klumba-sound", "1"); } catch (e) {} });
+    await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(String(e)));
+    await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: "load" });
+    await page.mouse.click(200, 400);
+    await page.waitForFunction(() => window.KlumbaMusic && window.KlumbaMusic.songPlaying, null, { timeout: 8000 });
+    const level = () => page.evaluate(() => window.KlumbaMusic.duckLevel);
+    assert.ok((await level()) > 0.95, "music at full level before the voice");
+
+    await page.locator("#gVoice").scrollIntoViewIfNeeded();
+    await page.locator("#gVoice").click();
+    await page.waitForTimeout(900);
+    assert.ok(await page.evaluate(() => window.KlumbaMusic.ducked), "voice ducks the music");
+    assert.ok((await level()) < 0.25, `song level under the voice: ${await level()}`);
+
+    await page.locator("#gVoice").click(); // пауза
+    await page.waitForTimeout(3000);
+    assert.equal(await page.evaluate(() => window.KlumbaMusic.ducked), false);
+    assert.ok((await level()) > 0.9, `music back after the voice: ${await level()}`);
     assert.deepEqual(errors, []);
     await page.close();
   } finally {

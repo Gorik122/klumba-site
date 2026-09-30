@@ -859,24 +859,22 @@
       a.preload = "none";
       gVoice.hidden = false;
       const lbl = gVoice.querySelector("span");
+      // музыка приглушается ровно на то время, пока звучит голос
+      const show = (on) => {
+        duck(on);
+        gVoice.classList.toggle("is-on", on);
+        if (lbl) lbl.textContent = on ? "пауза" : "послушать Надежду";
+      };
       gVoice.addEventListener("click", () => {
         if (a.paused) {
-          a.play().catch(() => {});
-          duck(true);
-          gVoice.classList.add("is-on");
-          if (lbl) lbl.textContent = "пауза";
-        } else {
-          a.pause();
-          duck(false);
-          gVoice.classList.remove("is-on");
-          if (lbl) lbl.textContent = "послушать Надежду";
-        }
+          show(true); // приглушаем сразу, не дожидаясь загрузки файла
+          const r = a.play();
+          if (r && r.catch) r.catch(() => show(false));
+        } else a.pause();
       });
-      a.addEventListener("ended", () => {
-        duck(false);
-        gVoice.classList.remove("is-on");
-        if (lbl) lbl.textContent = "послушать Надежду";
-      });
+      a.addEventListener("playing", () => show(true));
+      a.addEventListener("pause", () => show(false));
+      a.addEventListener("ended", () => show(false));
     } else gVoice.hidden = true;
   }
 

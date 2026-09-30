@@ -1161,7 +1161,7 @@
   // рамка-лоза вокруг карточки: листья, которые по ходу истории сменяются колючками
   captionEl.innerHTML = `<svg class="vine" aria-hidden="true"></svg><div class="cap-text"></div>`;
   const vineEl = captionEl.firstChild, capText = captionEl.lastChild;
-  const NS = "http://www.w3.org/2000/svg", PAD = 9;
+  const PAD = 9;
   let vineSlots = [], vineKey = "", thornShown = -1;
   function buildVine() {
     const w = captionEl.offsetWidth, h = captionEl.offsetHeight;
@@ -1173,16 +1173,31 @@
     vineEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
     vineEl.setAttribute("width", W);
     vineEl.setAttribute("height", H);
-    // контур карточки, по которому вьётся лоза
+    // контур карточки (скруглённый прямоугольник по часовой от верхнего края), по которому вьётся лоза.
+    // Точки считаются формулой: getPointAtLength на телефоне подвешивал кадр при каждой смене текста
     const r = Math.min(rad, w / 2, h / 2), x0 = PAD, y0 = PAD, x1 = PAD + w, y1 = PAD + h;
-    const guide = document.createElementNS(NS, "path");
-    guide.setAttribute("d", `M${x0 + r} ${y0}H${x1 - r}A${r} ${r} 0 0 1 ${x1} ${y0 + r}V${y1 - r}A${r} ${r} 0 0 1 ${x1 - r} ${y1}H${x0 + r}A${r} ${r} 0 0 1 ${x0} ${y1 - r}V${y0 + r}A${r} ${r} 0 0 1 ${x0 + r} ${y0}Z`);
-    vineEl.innerHTML = "";
-    vineEl.appendChild(guide);
-    const L = guide.getTotalLength();
+    const sw = w - 2 * r, sh = h - 2 * r, arc = (Math.PI / 2) * r;
+    const EDGES = [
+      [sw, (d) => ({ x: x0 + r + d, y: y0 })],
+      [arc, (d) => { const t = -Math.PI / 2 + d / r; return { x: x1 - r + r * Math.cos(t), y: y0 + r + r * Math.sin(t) }; }],
+      [sh, (d) => ({ x: x1, y: y0 + r + d })],
+      [arc, (d) => { const t = d / r; return { x: x1 - r + r * Math.cos(t), y: y1 - r + r * Math.sin(t) }; }],
+      [sw, (d) => ({ x: x1 - r - d, y: y1 })],
+      [arc, (d) => { const t = Math.PI / 2 + d / r; return { x: x0 + r + r * Math.cos(t), y: y1 - r + r * Math.sin(t) }; }],
+      [sh, (d) => ({ x: x0, y: y1 - r - d })],
+      [arc, (d) => { const t = Math.PI + d / r; return { x: x0 + r + r * Math.cos(t), y: y0 + r + r * Math.sin(t) }; }]
+    ];
+    const L = EDGES.reduce((a, [len]) => a + len, 0);
+    const pointAt = (s) => {
+      for (const [len, f] of EDGES) {
+        if (s <= len) return f(s);
+        s -= len;
+      }
+      return { x: x0 + r, y: y0 };
+    };
     const at = (s) => {
       s = ((s % L) + L) % L;
-      const a = guide.getPointAtLength(s), b = guide.getPointAtLength((s + 1.5) % L), c = guide.getPointAtLength((s - 1.5 + L) % L);
+      const a = pointAt(s), b = pointAt((s + 1.5) % L), c = pointAt((s - 1.5 + L) % L);
       const tx = b.x - c.x, ty = b.y - c.y, n = Math.hypot(tx, ty) || 1;
       return { x: a.x, y: a.y, tx: tx / n, ty: ty / n, nx: ty / n, ny: -tx / n };
     };
@@ -1778,8 +1793,9 @@
   addEventListener("resize", resize);
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-  let cur = scrollTarget();
+  let cur = scrollTarget(), vel = 0;
   let prev = performance.now();
+  const EASE_T = 0.32; // за сколько секунд история мягко догоняет прокрутку
   function frame(now) {
     const dt = clamp((now - prev) / 1000, 0, 0.05);
     prev = now;
@@ -1789,17 +1805,22 @@
       if (VW < 2 || VH < 2) return;
     }
     const target = scrollTarget();
-    if (reduce.matches) cur = target;
+    if (reduce.matches) { cur = target; vel = 0; }
     else {
-      // история догоняет прокрутку плавно и не быстрее ~одного абзаца за секунду:
-      // даже резкий свайп проигрывает каждый кадр, а не перескакивает через текст
-      const gap = target - cur;
-      const vmax = gap > 0 ? beatLenRaw(cur) / 0.9 : 0.2; // вперёд — абзац не быстрее чем за ~0.9 с
-
-      let d = gap * (1 - Math.pow(0.0015, dt));
-      d = clamp(d, -vmax * dt, vmax * dt);
-      cur += d;
-      if (Math.abs(target - cur) < 0.00004) cur = target;
+      // история догоняет прокрутку мягкой пружиной: плавно разгоняется и плавно
+      // тормозит — без рывка в начале и резкой остановки в конце свайпа.
+      // Вперёд не быстрее ~одного абзаца за 0.9 с: даже резкий свайп проигрывает
+      // каждый кадр, а не перескакивает через текст.
+      const vmax = target > cur ? beatLenRaw(cur) / 0.9 : 0.2;
+      const w = 2 / EASE_T, x = w * dt;
+      const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+      const change = clamp(cur - target, -vmax * EASE_T, vmax * EASE_T);
+      const tmp = (vel + w * change) * dt;
+      vel = (vel - w * tmp) * e;
+      let next = cur - change + (change + tmp) * e;
+      if (target > cur === next > target) { next = target; vel = 0; } // не проскакивать цель
+      cur = next;
+      if (Math.abs(target - cur) < 0.00002 && Math.abs(vel) < 0.0004) { cur = target; vel = 0; }
     }
     render(toStory(cur), now / 1000, dt);
   }
@@ -1812,12 +1833,14 @@
       const r = toRaw(p);
       scrollTo(0, track.offsetTop + max * r);
       cur = r;
+      vel = 0;
     },
     seekBridge(b) {
       const max = track.offsetHeight - VH;
       const r = RA + RB * b;
       scrollTo(0, track.offsetTop + max * r);
       cur = r;
+      vel = 0;
     },
     get p() { return toStory(cur); },
     get bridge() { toStory(cur); return BR.on ? BR.b : -1; }
