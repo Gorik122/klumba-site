@@ -16,8 +16,9 @@
     reviews: [], // [{ text: "…", who: "Анна, 34" }] — только настоящие, с согласия
     voice: {
       greeting: "audio/privet.mp3",
-      // озвучка истории по карточкам
-      story: Object.fromEntries(["intro", "w0", "w1", "w2", "w3", "w4", "w5", "choke", "girl", "dig", "p0", "t0", "p1", "t1", "p2", "t2", "p3", "t3", "p4", "t4", "p5", "t5", "fin"].map((k) => [k, `audio/story/${k}.mp3`]))
+      // озвучка истории по карточкам — выключена: вместо голоса играет песня (audio/song.mp3).
+      // Вернуть голос: story: Object.fromEntries(["intro", "w0", …].map((k) => [k, `audio/story/${k}.mp3`]))
+      story: {}
     }
   };
   /* ============================================================== */

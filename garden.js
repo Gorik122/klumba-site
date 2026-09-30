@@ -1246,7 +1246,15 @@
   let capKey = "";
   function caption(p, st) {
     let key, html;
-    if (p < TL.weed0 - 0.006) {
+    if (BR.on) {
+      if (BR.b < 0.5) {
+        key = "bridge";
+        html = `<p class="kicker">пока всё хорошо</p><h2>Вот твоя жизнь — и в&nbsp;ней всё красиво.</h2><p class="sub">Цветы растут, бабочки летают, ничего не задевает. Такая ты — настоящая: смелая, живая, любопытная.</p>`;
+      } else {
+        key = "bridge2";
+        html = `<p class="kicker">но бывают ситуации</p><h2>И вдруг включается программа.</h2><p class="sub">Тебя критикуют, хочется выделиться, попросить своё или сказать «нет» — и внутри звучат слова из&nbsp;детства. Чужие фразы, которые ты когда-то приняла за&nbsp;правду. Они падают в&nbsp;землю, как семена.</p>`;
+      }
+    } else if (p < TL.weed0 - 0.006) {
       key = "intro";
       html = `<p class="kicker">с самого начала</p><h1>Представь, что твоя жизнь&nbsp;— клумба.</h1><p class="sub">С рождения в ней растёт живое: смелость, интерес, желание быть собой. Оно цветёт само — если ему не мешать.</p>`;
     } else if (p < TL.choke) {
@@ -1285,7 +1293,7 @@
       window.dispatchEvent(new CustomEvent("klumba:beat", { detail: key }));
       // новая чужая фраза бьёт: карточка вздрагивает, сцену сжимает болью
       const wi = key[0] === "w" ? +key.slice(1) : -1;
-      const was = prev === "intro" ? -1 : prev[0] === "w" ? +prev.slice(1) : 99;
+      const was = prev === "intro" || prev.startsWith("bridge") ? -1 : prev[0] === "w" ? +prev.slice(1) : 99;
       if (wi >= 0 && wi > was) hurt();
     }
   }
@@ -1303,6 +1311,7 @@
   const CRUMBS = ["#3e2a1c", "#5a4030", "#2d1f15", "#6b4c36"];
   const DARK = hexRgb("#3b3028"), PINK = hexRgb("#f59bbf");
   const acc = {};
+  let seedNext = 0;
   function emitCount(key, rate, dt) {
     acc[key] = Math.max(0, (acc[key] || 0) + rate * dt);
     const n = Math.floor(acc[key]);
@@ -1324,6 +1333,7 @@
 
     for (let i = parts.length - 1; i >= 0; i--) {
       const q = parts[i];
+      if (q.delay > 0) { q.delay -= dt; continue; }
       q.age += dt;
       if (q.age > q.life) {
         parts.splice(i, 1);
@@ -1351,6 +1361,14 @@
         ctx.beginPath();
         ctx.ellipse(q.x, q.y, q.sz * (0.6 + m), q.sz * (0.6 + m) * (0.6 + 0.4 * m), q.rot, 0, 6.283);
         ctx.fill();
+      } else if (q.k === "word") {
+        // слово из детства падает в землю, как семя
+        const m = q.age / q.life;
+        ctx.font = `italic 600 ${n1(q.sz)}px Fraunces, Georgia, serif`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = `rgb(${Math.round(lerp(90, 52, m))},${Math.round(lerp(72, 38, m))},${Math.round(lerp(84, 30, m))})`;
+        ctx.globalAlpha = a * Math.min(1, 0.95 - 0.25 * m);
+        ctx.fillText(q.txt, q.x, q.y);
       } else if (q.k === "spark") {
         const s = q.sz * (0.4 + 0.6 * Math.sin((q.age / q.life) * Math.PI));
         ctx.fillStyle = q.col;
@@ -1663,6 +1681,20 @@
           while (n--) add({ k: "spark", x: F.x + F.hx + (Math.random() - 0.5) * 90, y: F.y + F.hy + (Math.random() - 0.5) * 90, vx: 0, vy: -12, sz: 3 + Math.random() * 4, col: pick(Math.random, ["#ffffff", "#ffd1e3", "#fff0b8"]), age: 0, life: 1 });
         }
       }
+      // мостик: слова падают ровно туда, где потом вырастут сорняки
+      if (BR.on && BR.b > 0.52) {
+        n = emitCount("seedword", 1.7, dt);
+        while (n--) {
+          const i = seedNext++ % 6, w = WEEDS[i], gy = mound(w.x) - 4;
+          const top = v.y0 + 30 * v.s, T = 2.6, sz = 19 * v.s;
+          // на узком экране слово не должно уезжать за край — сдвигаем его в кадр
+          const half = w.phrase.length * sz * 0.27 + 10 * v.s;
+          const wx = clamp(w.x, v.x0 + half, v.x0 + v.vw - half);
+          add({ k: "word", txt: w.phrase, x: wx, y: top, vx: 0, vy: (gy - top) / T, sz, age: 0, life: T });
+          // у земли слово рассыпается тёмной крошкой
+          for (let j = 0; j < 7; j++) add({ k: "crumb", x: wx + (Math.random() - 0.5) * 30, y: gy, vx: (Math.random() - 0.5) * 50, vy: -20 - Math.random() * 30, g: 360, sz: 1.2 + Math.random() * 1.4, col: pick(Math.random, CRUMBS), age: 0, life: 0.9, delay: T - 0.08 });
+        }
+      }
       if (p > 0.385 && p < 0.43) {
         n = emitCount("girl", 36, dt);
         while (n--) add({ k: "spark", x: pose.gx - 40 + (Math.random() - 0.5) * 220, y: geo.by - 110 + (Math.random() - 0.5) * 240, vx: 0, vy: -14, sz: 3 + Math.random() * 4.5, col: pick(Math.random, ["#ffffff", "#ffd1e3", "#fff0b8"]), age: 0, life: 1.1 });
@@ -1696,6 +1728,26 @@
     measureCaption();
   }
 
+  /* ---- мостик «откуда сорняки»: между началом и первым сорняком ----
+     Сцена стоит на месте (история не идёт), а прокрутка тратится на два абзаца:
+     «пока всё прекрасно» и «включаются программы — слова из детства падают в землю».
+     Сырая прокрутка r (0…1) → история p плюс ход мостика b (0…1). Остальная история
+     прокручивается ровно так же, как раньше. */
+  const HOLD = 0.0485;               // кадр начала: сорняков ещё нет
+  const RESUME = 0.0492;             // с этого места история идёт дальше (сорняк №1)
+  const BRIDGE_VH = 140;             // сколько прокрутки занимает мостик
+  const SPAN_VH = 1900 + BRIDGE_VH;  // полный ход прокрутки
+  const RA = (HOLD * 1900) / SPAN_VH;
+  const RB = BRIDGE_VH / SPAN_VH;
+  const RK = (1 - RA - RB) / (1 - RESUME);
+  const BR = { b: 0, on: false };
+  function toStory(r) {
+    if (r <= RA) return (BR.b = 0, BR.on = false, (r / RA) * HOLD);
+    if (r < RA + RB) return (BR.b = (r - RA) / RB, BR.on = true, HOLD);
+    return (BR.b = 1, BR.on = false, RESUME + (r - RA - RB) / RK);
+  }
+  const toRaw = (p) => (p <= HOLD ? (p / HOLD) * RA : p < RESUME ? RA + RB : RA + RB + (p - RESUME) * RK);
+
   // длина текущего абзаца истории в долях прокрутки
   function beatLen(p) {
     if (p < TL.weed0 - 0.006) return TL.weed0 - 0.006;
@@ -1708,6 +1760,13 @@
       return TL.pullStep * (u < 0.64 ? 0.64 : 0.36);
     }
     return 1 - TL.finale;
+  }
+
+  // длина абзаца в «сырой» прокрутке: вступление, два абзаца мостика, дальше как раньше
+  function beatLenRaw(r) {
+    if (r < RA) return RA;
+    if (r < RA + RB) return RB / 2;
+    return beatLen(RESUME + (r - RA - RB) / RK) * RK;
   }
 
   function scrollTarget() {
@@ -1735,24 +1794,32 @@
       // история догоняет прокрутку плавно и не быстрее ~одного абзаца за секунду:
       // даже резкий свайп проигрывает каждый кадр, а не перескакивает через текст
       const gap = target - cur;
-      const vmax = gap > 0 ? beatLen(cur) / 0.9 : 0.2; // вперёд — абзац не быстрее чем за ~0.9 с
+      const vmax = gap > 0 ? beatLenRaw(cur) / 0.9 : 0.2; // вперёд — абзац не быстрее чем за ~0.9 с
 
       let d = gap * (1 - Math.pow(0.0015, dt));
       d = clamp(d, -vmax * dt, vmax * dt);
       cur += d;
       if (Math.abs(target - cur) < 0.00004) cur = target;
     }
-    render(cur, now / 1000, dt);
+    render(toStory(cur), now / 1000, dt);
   }
   requestAnimationFrame(frame);
 
-  // для проверок: window.__klumba.seek(0.5)
+  // для проверок: window.__klumba.seek(0.5) — место истории; seekBridge(0.25) — место мостика
   window.__klumba = {
     seek(p) {
       const max = track.offsetHeight - VH;
-      scrollTo(0, track.offsetTop + max * p);
-      cur = p;
+      const r = toRaw(p);
+      scrollTo(0, track.offsetTop + max * r);
+      cur = r;
     },
-    get p() { return cur; }
+    seekBridge(b) {
+      const max = track.offsetHeight - VH;
+      const r = RA + RB * b;
+      scrollTo(0, track.offsetTop + max * r);
+      cur = r;
+    },
+    get p() { return toStory(cur); },
+    get bridge() { toStory(cur); return BR.on ? BR.b : -1; }
   };
 })();

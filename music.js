@@ -1,7 +1,9 @@
 /* Музыка клумбы: сказочная, играет сама из Web Audio (без файлов).
    Каждый шаг прокрутки звенит нотой музыкальной шкатулки, фон и лад
    меняются вместе с историей, чужие фразы отзываются глухим ударом,
-   вынутый корень — россыпью колокольчиков. Включается сама с первого касания, кнопкой — выключается. */
+   вынутый корень — россыпью колокольчиков. Включается сама с первого касания, кнопкой — выключается.
+   Если рядом лежит audio/song.mp3 — вместо шкатулки играет песня: сама, по кругу, а её
+   яркость следует за историей (клумба задыхается — звук глуше, сад ожил — открывается). */
 (() => {
   "use strict";
 
@@ -24,6 +26,53 @@
   let ctx = null, master, dry, wet, lp, duckG, on = false, wanted = false, wasAudible = false;
   let pad = null, padMood = -1, lastP = -1, acc = 0, step = 0, lastNote = 0, lastScroll = 0, idleT = 0;
   let pulledSeen = 0, girlSeen = false, finSeen = false;
+
+  // ---- песня вместо шкатулки (если файл лежит рядом с сайтом) ----
+  const SONG_URL = "audio/song.mp3";
+  let songOK = false, songMode = false, songEl = null, songG = null, songLP = null;
+  function ensureSong() {
+    if (!songOK || !ctx || songEl) return;
+    try {
+      songEl = new Audio(SONG_URL);
+      songEl.loop = true;
+      songEl.preload = "auto";
+      songEl.setAttribute("playsinline", "");
+      const src = ctx.createMediaElementSource(songEl);
+      songLP = ctx.createBiquadFilter();
+      songLP.type = "lowpass";
+      songLP.frequency.value = 18000;
+      songLP.Q.value = 0.3;
+      songG = ctx.createGain();
+      songG.gain.value = 0.5;
+      src.connect(songLP); songLP.connect(songG); songG.connect(master);
+    } catch (e) { songEl = null; songOK = false; }
+  }
+  function playSong() {
+    if (!songOK) return;
+    ensureSong();
+    if (!songEl) return;
+    if (!songMode) {
+      songMode = true;
+      // шкатулка и фон-аккорд уходят: песня играет в своей тональности
+      if (pad) {
+        const t = ctx.currentTime;
+        pad.g.gain.cancelScheduledValues(t);
+        pad.g.gain.setValueAtTime(pad.g.gain.value, t);
+        pad.g.gain.linearRampToValueAtTime(0, t + 1.5);
+      }
+    }
+    const r = songEl.play();
+    if (r && r.catch) r.catch(() => {});
+  }
+  function pauseSong() { if (songEl) try { songEl.pause(); } catch (e) {} }
+  // есть ли файл: узнаём один раз, не скачивая его
+  try {
+    fetch(SONG_URL, { method: "HEAD" }).then((r) => {
+      const len = +r.headers.get("content-length") || 0;
+      songOK = r.ok && len > 100000 && !/text\/html/i.test(r.headers.get("content-type") || "");
+      if (songOK && on && ctx && ctx.state === "running") playSong();
+    }).catch(() => {});
+  } catch (e) { /* без песни */ }
 
   function impulse(sec) {
     const n = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate);
@@ -122,6 +171,7 @@
   }
 
   function sparkle(scale, n, t, dir) {
+    if (songMode) return; // под песню шкатулка не звенит
     for (let i = 0; i < n; i++) {
       const m = scale[Math.min(scale.length - 1, i % scale.length)] + (i >= scale.length ? 12 : 0);
       chime(dir > 0 ? m + 12 : m, t + i * 0.13, 0.06, 2.8, (i / n) * 1.2 - 0.6);
@@ -132,6 +182,13 @@
   function frame(p, s) {
     if (!on || !ctx || ctx.state !== "running") return;
     const now = ctx.currentTime, k = moodAt(p), M = MOODS[k];
+    if (songMode && songLP) {
+      // чем гуще сорняки, тем глуше песня; когда сад ожил — она открывается
+      const gl = Math.min(1, s.gloom || 0);
+      songLP.frequency.setTargetAtTime(17000 - 13500 * gl, now, 1.2);
+      songG.gain.setTargetAtTime(p >= 0.875 ? 0.54 : 0.48 - 0.06 * gl, now, 1.5);
+      return;
+    }
     setPad(k);
     lp.frequency.setTargetAtTime(1400 + 2600 * Math.min(1.2, M.bright) * (1 - 0.45 * (s.gloom || 0)), now, 1.2);
 
@@ -182,6 +239,7 @@
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
     o.connect(g); g.connect(lp);
     o.start(t); o.stop(t + 0.95);
+    if (songMode) return; // только глухой толчок: звенящий полутон не в тон песне
     chime(63, t + 0.02, 0.07, 1.8, -0.3);
     chime(64, t + 0.02, 0.06, 1.8, 0.3);
   }
@@ -206,6 +264,7 @@
     on = true;
     lastP = -1;
     paint();
+    if (songOK) playSong();
     if (ctx.state === "running") kick();
     else {
       ctx.onstatechange = () => { if (ctx.state === "running" && on) { ctx.onstatechange = null; kick(); paint(); } };
@@ -228,7 +287,7 @@
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(master.gain.value, t);
       master.gain.linearRampToValueAtTime(0, t + 0.6);
-      setTimeout(() => { if (!on && ctx) ctx.suspend(); }, 700);
+      setTimeout(() => { if (!on && ctx) { ctx.suspend(); pauseSong(); } }, 700);
     }
     paint();
   }
@@ -245,7 +304,10 @@
     if (btn && btn.contains(e.target)) return;
     if (!wanted) { unbind(); return; }
     if (!on) start();
-    else if (ctx && ctx.state !== "running") { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+    else {
+      if (ctx && ctx.state !== "running") { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+      if (songMode && songEl && songEl.paused) playSong();
+    }
     setTimeout(() => { if (ctx && ctx.state === "running") unbind(); }, 300);
   }
   GESTURES.forEach((n) => addEventListener(n, first, { capture: true, passive: true }));
@@ -257,7 +319,8 @@
   }
   document.addEventListener("visibilitychange", () => {
     if (!ctx || !on) return;
-    document.hidden ? ctx.suspend() : ctx.resume();
+    if (document.hidden) { ctx.suspend(); pauseSong(); }
+    else { ctx.resume(); if (songMode) playSong(); }
   });
   paint();
 
@@ -272,5 +335,5 @@
     duckG.gain.setTargetAtTime(v ? 0.3 : 1, ctx.currentTime, 0.35);
   }
 
-  window.KlumbaMusic = { frame, hurt, bloom, duck, get ctx() { return ctx; }, get on() { return on; }, get audible() { return !!audible(); } };
+  window.KlumbaMusic = { frame, hurt, bloom, duck, get ctx() { return ctx; }, get on() { return on; }, get audible() { return !!audible(); }, get song() { return songMode; }, get songPlaying() { return !!(songEl && !songEl.paused); } };
 })();

@@ -138,6 +138,46 @@ test("the garden story plays from bloom to weeds to roots and back", async () =>
   }
 });
 
+test("a bridge explains where the weeds come from", async () => {
+  const server = await startServer();
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const { page, errors } = await openPage(browser, server.address().port, { width: 1280, height: 800 });
+    const caption = () => page.evaluate(() => document.getElementById("caption").textContent);
+    const weedTags = () => page.evaluate(() => [...document.querySelectorAll(".tag--weed")].filter((el) => Number(getComputedStyle(el).opacity) > 0.3).length);
+    const until = (re) => page.waitForFunction((src) => new RegExp(src).test(document.getElementById("caption").textContent), re.source, { timeout: 8000 });
+
+    await page.evaluate(() => window.__klumba.seek(0.02));
+    await until(/Представь, что твоя жизнь/);
+
+    // сначала «всё красиво» — сорняков нет
+    await page.evaluate(() => window.__klumba.seekBridge(0.2));
+    await until(/Вот твоя жизнь/);
+    assert.equal(await weedTags(), 0, "no weeds while life is still fine");
+    assert.ok((await page.evaluate(() => window.__klumba.bridge)) >= 0);
+
+    // потом «включается программа» — слова из детства падают в землю, сорняков всё ещё нет
+    await page.evaluate(() => window.__klumba.seekBridge(0.8));
+    await until(/включается программа/);
+    assert.match(await caption(), /слова из\s*детства/);
+    assert.equal(await weedTags(), 0, "weeds sprout only after the words fall");
+
+    // и только потом — первый сорняк
+    await page.evaluate(() => window.__klumba.seek(0.075));
+    await until(/Не высовывайся/);
+    assert.equal(await page.evaluate(() => window.__klumba.bridge), -1, "bridge is over");
+
+    // вверх по странице всё возвращается в том же порядке
+    await page.evaluate(() => window.__klumba.seekBridge(0.3));
+    await until(/Вот твоя жизнь/);
+    assert.deepEqual(errors, []);
+    await page.close();
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
 test("labels stay on screen on a phone", async () => {
   const server = await startServer();
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
