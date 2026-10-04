@@ -1,0 +1,52 @@
+# Каждый push в main выкладывает сайт на nadezhdadar.ru
+# (Yandex Cloud Object Storage, бакет со статическим сайтом).
+# Нужны секреты репозитория: YC_KEY_ID, YC_SECRET_KEY (статический ключ
+# сервисного аккаунта с ролью storage.editor). Имя бакета — YC_BUCKET
+# (переменная, по умолчанию nadezhdadar.ru).
+name: Выложить на nadezhdadar.ru
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.YC_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+      AWS_DEFAULT_REGION: ru-central1
+      BUCKET: ${{ vars.YC_BUCKET || 'nadezhdadar.ru' }}
+      EP: https://storage.yandexcloud.net
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ключи на месте?
+        id: keys
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::warning::Нет секретов YC_KEY_ID / YC_SECRET_KEY — выкладка пропущена"
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Залить файлы в бакет
+        if: steps.keys.outputs.ok == '1'
+        run: |
+          EXCL=(--exclude ".git/*" --exclude ".github/*" --exclude "node_modules/*"
+                --exclude "test/*" --exclude "claude/*" --exclude "*.zip"
+                --exclude "package.json" --exclude "package-lock.json" --exclude ".gitignore")
+          # всё, кроме html, — с кэшем на час
+          aws s3 sync . "s3://$BUCKET" --endpoint-url "$EP" "${EXCL[@]}" \
+            --exclude "*.html" --cache-control "public, max-age=3600"
+          # html — без кэша, чтобы обновления видны сразу
+          aws s3 sync . "s3://$BUCKET" --endpoint-url "$EP" "${EXCL[@]}" \
+            --exclude "*" --include "*.html" \
+            --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          echo "Готово: https://$BUCKET/"
