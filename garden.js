@@ -909,6 +909,20 @@
     return { by, A, B, hand: [P.gx + A.hx * GS, by + A.hy * GS] };
   }
 
+  /* садовница в спокойной позе (руки на коленях) — разметка для блока «Садовница» внизу */
+  window.KlumbaGirl = function () {
+    const geo = solveGirl({ gx: GIRL_HOME, lean: 3, head: -9, hand: null, handW: 0, bob: 0 });
+    const { A, B } = geo, T = (x, y, a) => `transform="translate(${n1(x)} ${n1(y)}) rotate(${f2(a * DEG)})"`;
+    return GIRL
+      .replace(/<g id="gRoot" opacity="0">\s*<ellipse[^>]*\/>/, "<g>")
+      .replace('<g id="gTorso">', '<g transform="rotate(-3 2 -40)">')
+      .replace('<g id="gHead">', '<g transform="rotate(9 0 -118)">')
+      .replace('<g id="gNearU">', `<g ${T(A.S[0], A.S[1], A.a1)}>`)
+      .replace('<g id="gNearF">', `<g ${T(A.ex, A.ey, A.a2)}>`)
+      .replace('<g id="gFarU">', `<g ${T(B.S[0], B.S[1], B.a1)}>`)
+      .replace('<g id="gFarF">', `<g ${T(B.ex, B.ey, B.a2)}>`);
+  };
+
   const releaseCache = [];
   function releaseOffset(k) {
     if (!releaseCache[k]) {
