@@ -519,8 +519,8 @@ h2 { font-size: clamp(28px, 2.7vw, 42px); }
 }
 .xsec h2 { font-size: clamp(34px, 4.6vw, 64px); max-width: 13em; }
 .xsec--pull { background: linear-gradient(180deg, #efe6f3 0%, #f8eef3 100%); }
-.xsec--bed { background: radial-gradient(60% 60% at 0% 0%, rgba(255, 214, 232, .8), transparent 60%), #f6f0f8; }
-.xsec--seed { background: #efe6f3; padding-top: 40px; }
+.xsec--bed { background: linear-gradient(180deg, #f8eef3 0, rgba(248, 238, 243, 0) 140px), radial-gradient(60% 60% at 0% 0%, rgba(255, 214, 232, .8), transparent 60%), #f6f0f8; }
+.xsec--seed { background: linear-gradient(180deg, #f6f0f8 0, #efe6f3 140px, #efe6f3 calc(100% - 140px), #f7f1f8 100%); padding-top: 40px; }
 .xsec--gardener {
   background: radial-gradient(70% 80% at 100% 100%, rgba(255, 214, 232, .9), transparent 60%), #f7f1f8;
   padding-bottom: clamp(90px, 14vh, 160px);
@@ -882,3 +882,8 @@ h2 { font-size: clamp(28px, 2.7vw, 42px); }
 @media (prefers-reduced-motion: reduce) {
   .sound, .sound.is-on svg { animation: none; }
 }
+
+/* невидимые полоски для цвета панелей iPhone (их ставит chrome.js) */
+.kl-tint { position: fixed; left: 0; right: 0; height: 16px; z-index: 2147483000; pointer-events: none; opacity: .16; }
+.kl-tint--top { top: 0; }
+.kl-tint--bot { bottom: 0; }
