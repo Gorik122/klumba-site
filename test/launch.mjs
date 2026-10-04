@@ -197,6 +197,122 @@ test("labels stay on screen on a phone", async () => {
   }
 });
 
+test("the story is a game: welcome flower, one step at a time, level window, pulling roots", async () => {
+  const server = await startServer();
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const { page, errors } = await openPage(browser, server.address().port, { width: 390, height: 844 });
+    const caption = () => page.evaluate(() => document.getElementById("caption").textContent);
+    const step = () => page.evaluate(() => window.__klumbaGame.step);
+    const until = (id) => page.waitForFunction((s) => window.__klumbaGame.ready && window.__klumbaGame.step === s, id, { timeout: 9000 });
+    const hold = async (ms) => {
+      const b = await page.locator(".gm-hold").boundingBox();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(ms);
+      await page.mouse.up();
+    };
+
+    // приветствие: розовый экран, цветок «нажми на меня», страница сама не листается
+    assert.ok(await page.locator("#gmWelcome").isVisible());
+    assert.match(await page.locator("#gmStart").textContent(), /нажми на/);
+    assert.match(await page.locator(".gm-lead").textContent(), /метафоры/);
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => scrollY), 0, "no scrolling past the welcome");
+
+    // нажали на цветок — «Представь, что твоя жизнь — клумба»; один свайп — открывается клумба
+    const flower = await page.locator("#gmStart").boundingBox(); // цветок «дышит» без остановки — жмём в центр, как пальцем
+    await page.mouse.click(flower.x + flower.width / 2, flower.y + flower.height / 2);
+    await page.waitForTimeout(1500);
+    assert.match(await page.locator("#gmIntro").textContent(), /Представь, что твоя жизнь/);
+    await page.keyboard.press("ArrowDown");
+    await until("life");
+    assert.match(await caption(), /Вот твоя жизнь/);
+    await page.waitForSelector("#gmWelcome", { state: "detached", timeout: 3000 });
+
+    // колесо / свайп — ровно один абзац
+    await page.mouse.wheel(0, 120);
+    await until("seeds");
+    assert.match(await caption(), /включается программа/);
+
+    // чужие фразы: дальше — только ответив «Тебе так говорили?»
+    await page.keyboard.press("ArrowDown");
+    await until("w0");
+    assert.match(await caption(), /Не высовывайся/);
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(700);
+    assert.equal(await step(), "w0", "an unanswered phrase holds the story");
+    for (let i = 0; i < PHRASES.length; i++) {
+      await until("w" + i);
+      assert.ok((await caption()).includes(PHRASES[i]));
+      await page.locator(`.gm-bar [data-a="${i % 2 ? 0 : 1}"]`).click();
+    }
+
+    // клумба задыхается — первая заметка «можно написать Надежде»
+    await until("choke");
+    assert.match(await page.locator(".gm-bar .gm-note").textContent(), /ни к чему не обязывает/);
+    assert.match(await page.locator(".gm-bar .gm-note__a").getAttribute("href"), /^https:\/\/t\.me\//);
+    assert.match(await page.locator(".gm-bar").textContent(), /3 из\s6/);
+
+    // посередине — окно нового уровня
+    await page.keyboard.press("ArrowDown");
+    await page.waitForSelector(".gm-pop.is-in");
+    assert.match(await page.locator(".gm-pop").textContent(), /новый уровень[\s\S]*противник — это\sты/);
+    assert.match(await page.locator(".gm-pop").textContent(), /Не высовывайся/, "the example uses her own weed");
+    await page.locator(".gm-pop__go").click();
+    await until("girl");
+    assert.match(await caption(), /И тогда приходит она/);
+
+    await page.keyboard.press("ArrowDown");
+    await until("dig");
+    await page.locator('.gm-bar [data-next]').click();
+    await until("roots");
+    const rootsShown = await visibleRoots(page);
+    assert.ok(rootsShown >= 2, `roots revealed: ${rootsShown}`); // на телефоне налезающие таблички прячутся
+
+    // корень: отпустила рано — он уходит обратно; дотянула — на его месте цветок
+    await page.keyboard.press("ArrowDown");
+    await until("pull0");
+    await hold(350);
+    await page.waitForTimeout(900);
+    assert.equal(await step(), "pull0");
+    assert.match(await caption(), /корень 01/);
+    for (let k = 0; k < 6; k++) {
+      await until("pull" + k);
+      await hold(1900);
+      await until("bloom" + k);
+      assert.match(await caption(), /выдернут/);
+      if (k < 5) await page.keyboard.press("ArrowDown");
+    }
+    assert.equal(await page.locator("#dots li.is-flower").count(), 6);
+
+    await page.keyboard.press("ArrowDown");
+    await until("fin");
+    assert.match(await caption(), /Это снова твой сад/);
+
+    // конец игры: страница снова листается, дальше — блоки под историей
+    await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(() => !window.__klumbaGame.on);
+    assert.ok(!(await page.evaluate(() => document.documentElement.classList.contains("is-game"))));
+    await page.waitForFunction(() => Math.abs(document.getElementById("outro").getBoundingClientRect().top) < 40, null, { timeout: 6000 });
+    assert.equal(await page.locator(".gm-note--page").count(), 1, "second note under the roots map");
+
+    // фразы, на которые она ответила «да», уже растут в «Моей клумбе»
+    await page.locator("#mybed").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelectorAll(".phrase.is-on").length === 3, null, { timeout: 6000 });
+    assert.deepEqual(errors, []);
+    await page.close();
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+function visibleRoots(page) {
+  return page.evaluate(() => [...document.querySelectorAll(".tag--root")].filter((el) => Number(getComputedStyle(el).opacity) > 0.5).length);
+}
+
 test("music steps back while Nadezhda's voice message plays", async () => {
   const server = await startServer();
   const browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
@@ -207,7 +323,8 @@ test("music steps back while Nadezhda's voice message plays", async () => {
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: "load" });
-    await page.mouse.click(200, 400);
+    // первое касание — «сразу к Надежде» на приветствии: музыка включается, игра пропускается
+    await page.locator("#gmSkip").click();
     await page.waitForFunction(() => window.KlumbaMusic && window.KlumbaMusic.songPlaying, null, { timeout: 8000 });
     const level = () => page.evaluate(() => window.KlumbaMusic.duckLevel);
     assert.ok((await level()) > 0.95, "music at full level before the voice");

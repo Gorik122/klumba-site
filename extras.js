@@ -55,6 +55,7 @@
     return "";
   }
   const hasContact = () => !!(KLUMBA.telegram || KLUMBA.whatsapp);
+  window.KlumbaContact = { href: contactHref }; // для заметок «можно написать Надежде» (game.js)
   function wire(el, text) {
     if (!el) return;
     const href = contactHref(text);

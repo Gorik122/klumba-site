@@ -1123,7 +1123,7 @@
       life: "Ты откладываешь старт, пока «не будешь готова», — и готовой так и не становишься. Десятый курс вместо первого шага, всё должно быть идеально. Со стороны похоже на лень, а на деле это страх снова услышать тот голос из детства."
     }
   ];
-  window.KlumbaData = { WEEDS, ROOTS };
+  window.KlumbaData = { WEEDS, ROOTS, TL };
   const mapEl = $("map");
   mapEl.innerHTML = WEEDS.map((w, i) => {
     const R = ROOTS[i];
@@ -1860,6 +1860,9 @@
       vel = 0;
     },
     get p() { return toStory(cur); },
-    get bridge() { toStory(cur); return BR.on ? BR.b : -1; }
+    get bridge() { toStory(cur); return BR.on ? BR.b : -1; },
+    // для игры (game.js): история плавно едет к месту, как от прокрутки, — без прыжка
+    go(p) { scrollTo(0, track.offsetTop + (track.offsetHeight - VH) * toRaw(p)); },
+    goBridge(b) { scrollTo(0, track.offsetTop + (track.offsetHeight - VH) * (RA + RB * b)); }
   };
 })();

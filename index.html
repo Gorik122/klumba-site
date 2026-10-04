@@ -11,8 +11,44 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="game.css" />
+  <!-- игра включается сразу, до первой отрисовки; если game.js так и не загрузился — сайт работает как раньше -->
+  <script>document.documentElement.classList.add("is-game");setTimeout(function(){if(!window.KlumbaGame)document.documentElement.classList.remove("is-game")},12000);</script>
 </head>
 <body>
+  <div class="gm-welcome" id="gmWelcome">
+    <div class="gm-fall" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <section class="gm-hello" aria-labelledby="gmHelloT">
+      <p class="gm-brand"><i></i>клумба</p>
+      <p class="kicker">история-игра</p>
+      <h1 class="gm-title" id="gmHelloT">Добро пожаловать</h1>
+      <button class="gm-flower" id="gmStart" type="button">
+        <svg viewBox="-120 -120 240 240" aria-hidden="true">
+          <defs>
+            <radialGradient id="gmPetA" cx="0" cy="0" r="112" gradientUnits="userSpaceOnUse"><stop offset=".22" stop-color="#fde6ef"/><stop offset=".62" stop-color="#f7b0cb"/><stop offset="1" stop-color="#e97fab"/></radialGradient>
+            <radialGradient id="gmPetB" cx="0" cy="0" r="80" gradientUnits="userSpaceOnUse"><stop offset=".3" stop-color="#ffffff"/><stop offset="1" stop-color="#f9c6da"/></radialGradient>
+            <path id="gmPet" d="M0-16C21-34 31-80 0-110C-31-80-21-34 0-16Z"/>
+            <path id="gmPetS" d="M0-12C15-26 21-56 0-80C-21-56-15-26 0-12Z"/>
+            <path id="gmVein" d="M0-24Q3-62 0-98"/>
+          </defs>
+          <g class="gm-flower__spin">
+            <g fill="url(#gmPetA)"><use href="#gmPet"/><use href="#gmPet" transform="rotate(36)"/><use href="#gmPet" transform="rotate(72)"/><use href="#gmPet" transform="rotate(108)"/><use href="#gmPet" transform="rotate(144)"/><use href="#gmPet" transform="rotate(180)"/><use href="#gmPet" transform="rotate(216)"/><use href="#gmPet" transform="rotate(252)"/><use href="#gmPet" transform="rotate(288)"/><use href="#gmPet" transform="rotate(324)"/></g>
+            <g fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".55"><use href="#gmVein"/><use href="#gmVein" transform="rotate(36)"/><use href="#gmVein" transform="rotate(72)"/><use href="#gmVein" transform="rotate(108)"/><use href="#gmVein" transform="rotate(144)"/><use href="#gmVein" transform="rotate(180)"/><use href="#gmVein" transform="rotate(216)"/><use href="#gmVein" transform="rotate(252)"/><use href="#gmVein" transform="rotate(288)"/><use href="#gmVein" transform="rotate(324)"/></g>
+            <g fill="url(#gmPetB)"><use href="#gmPetS" transform="rotate(18)"/><use href="#gmPetS" transform="rotate(54)"/><use href="#gmPetS" transform="rotate(90)"/><use href="#gmPetS" transform="rotate(126)"/><use href="#gmPetS" transform="rotate(162)"/><use href="#gmPetS" transform="rotate(198)"/><use href="#gmPetS" transform="rotate(234)"/><use href="#gmPetS" transform="rotate(270)"/><use href="#gmPetS" transform="rotate(306)"/><use href="#gmPetS" transform="rotate(342)"/></g>
+          </g>
+        </svg>
+        <span class="gm-flower__c"><small>чтобы начать</small><b>нажми на&nbsp;меня</b></span>
+      </button>
+      <p class="gm-lead">Всё, что ты увидишь дальше, — метафоры. Включи воображение: мы&nbsp;отправляемся в&nbsp;путь.</p>
+      <p class="gm-sound"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 14.5V4.2l8-1.7v10.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6" cy="14.6" r="2.2"/><circle cx="14" cy="12.8" r="2.2"/></svg>будет музыка</p>
+      <a class="gm-skip" id="gmSkip" href="#gardener">уже была здесь? Сразу к&nbsp;Надежде</a>
+    </section>
+    <section class="gm-intro" id="gmIntro" aria-live="polite">
+      <div class="gm-intro__text"></div>
+      <button class="gm-cue" id="gmCue" type="button"><span>листай вниз</span><i></i></button>
+    </section>
+  </div>
+
   <main>
     <div class="track" id="track">
       <div class="stage" id="stage">
@@ -120,5 +156,6 @@
   <script src="music.js"></script>
   <script src="garden.js"></script>
   <script src="extras.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
